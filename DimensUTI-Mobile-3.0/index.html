@@ -268,3 +268,145 @@
   <script src="js/app.js"></script>
 </body>
 </html>
+<!-- =========================================
+     TELA DE AUTENTICAÇÃO - DIMENSUTI 4.0
+========================================= -->
+
+<div id="auth-screen" class="auth-screen">
+
+    <div class="auth-card">
+
+        <!-- LOGO -->
+        <div class="auth-logo">
+            <img
+                src="assets/logo.png"
+                alt="Dia de Treinamento"
+                onerror="this.style.display='none'"
+            >
+        </div>
+
+        <h1>DimensUTI</h1>
+
+        <p class="auth-subtitle">
+            Dimensionamento inteligente para enfermagem
+        </p>
+
+        <div class="trial-box">
+            🎁 <strong>Teste gratuito</strong><br>
+            Utilize até <strong>3 plantões gratuitamente</strong>
+        </div>
+
+
+        <!-- LOGIN -->
+        <div id="login-form">
+
+            <h2>Entrar</h2>
+
+            <input
+                type="email"
+                id="login-email"
+                placeholder="Seu e-mail"
+                autocomplete="email"
+            >
+
+            <input
+                type="password"
+                id="login-password"
+                placeholder="Sua senha"
+                autocomplete="current-password"
+            >
+
+            <button
+                class="auth-button"
+                onclick="entrarNoSistema()"
+            >
+                🔐 Entrar
+            </button>
+
+            <button
+                class="auth-link"
+                onclick="mostrarCadastro()"
+            >
+                Criar minha conta
+            </button>
+
+            <button
+                class="auth-link"
+                onclick="esqueciMinhaSenha()"
+            >
+                Esqueci minha senha
+            </button>
+
+        </div>
+
+
+        <!-- CADASTRO -->
+        <div
+            id="register-form"
+            style="display:none"
+        >
+
+            <h2>Criar conta</h2>
+
+            <input
+                type="text"
+                id="register-name"
+                placeholder="Seu nome"
+                autocomplete="name"
+            >
+
+            <input
+                type="email"
+                id="register-email"
+                placeholder="Seu e-mail"
+                autocomplete="email"
+            >
+
+            <input
+                type="password"
+                id="register-password"
+                placeholder="Crie uma senha"
+                autocomplete="new-password"
+            >
+
+            <button
+                class="auth-button"
+                onclick="registrarUsuario()"
+            >
+                👤 Criar conta
+            </button>
+
+            <button
+                class="auth-link"
+                onclick="mostrarLogin()"
+            >
+                Já tenho uma conta
+            </button>
+
+        </div>
+
+        <p class="auth-footer">
+            Ao utilizar o DimensUTI você concorda com os
+            Termos de Uso e Política de Privacidade.
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- INDICADOR DA ASSINATURA -->
+<div id="trial-indicator" class="trial-indicator"></div>
+<!-- SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- DIMENSUTI COMERCIAL -->
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+
+<script src="js/app.js"></script>
+</body>
