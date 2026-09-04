@@ -543,3 +543,146 @@ document.addEventListener(
   "DOMContentLoaded",
   verificarSessao
 );
+// ==========================================
+// FUNÇÕES DOS BOTÕES DA TELA
+// ==========================================
+
+// Mostrar cadastro
+function mostrarCadastro() {
+
+  document.getElementById("login-form").style.display = "none";
+
+  document.getElementById("register-form").style.display = "block";
+
+}
+
+
+// Mostrar login
+function mostrarLogin() {
+
+  document.getElementById("register-form").style.display = "none";
+
+  document.getElementById("login-form").style.display = "block";
+
+}
+
+
+// Botão ENTRAR
+async function entrarNoSistema() {
+
+  const email =
+    document.getElementById("login-email").value.trim();
+
+  const senha =
+    document.getElementById("login-password").value;
+
+
+  if (!email || !senha) {
+
+    alert("Digite seu e-mail e sua senha.");
+
+    return;
+
+  }
+
+
+  const resultado =
+    await fazerLogin(email, senha);
+
+
+  if (resultado.sucesso) {
+
+    document.getElementById("login-password").value = "";
+
+  }
+
+}
+
+
+// Botão CRIAR CONTA
+async function registrarUsuario() {
+
+  const nome =
+    document.getElementById("register-name").value.trim();
+
+  const email =
+    document.getElementById("register-email").value.trim();
+
+  const senha =
+    document.getElementById("register-password").value;
+
+
+  if (!nome) {
+
+    alert("Digite seu nome.");
+
+    return;
+
+  }
+
+
+  if (!email) {
+
+    alert("Digite seu e-mail.");
+
+    return;
+
+  }
+
+
+  if (!senha || senha.length < 6) {
+
+    alert(
+      "Sua senha precisa ter pelo menos 6 caracteres."
+    );
+
+    return;
+
+  }
+
+
+  const resultado =
+    await criarConta(nome, email, senha);
+
+
+  if (resultado.sucesso) {
+
+    // Limpar formulário
+
+    document.getElementById("register-name").value = "";
+
+    document.getElementById("register-email").value = "";
+
+    document.getElementById("register-password").value = "";
+
+
+    // Voltar para login
+
+    mostrarLogin();
+
+  }
+
+}
+
+
+// Recuperação de senha
+async function esqueciMinhaSenha() {
+
+  const email =
+    document.getElementById("login-email").value.trim();
+
+
+  if (!email) {
+
+    alert(
+      "Digite primeiro seu e-mail no campo acima."
+    );
+
+    return;
+
+  }
+
+
+  await recuperarSenha(email);
+
+}
