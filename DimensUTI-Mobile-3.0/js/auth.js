@@ -3,8 +3,7 @@
 // AUTENTICAÇÃO E CONTROLE DE ACESSO
 // ==========================================
 
-var usuarioAtual = window.usuarioAtual || null;
-window.usuarioAtual = usuarioAtual;
+window.usuarioAtual = window.usuarioAtual || null;
 
 
 // ==========================================
@@ -25,7 +24,7 @@ async function verificarSessao() {
 
   if (session && session.user) {
 
-    usuarioAtual = session.user;
+    window.usuarioAtual = session.user;
 
     mostrarAplicativo();
 
