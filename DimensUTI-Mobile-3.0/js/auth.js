@@ -3,7 +3,8 @@
 // AUTENTICAÇÃO E CONTROLE DE ACESSO
 // ==========================================
 
-let usuarioAtual = null;
+var usuarioAtual = window.usuarioAtual || null;
+window.usuarioAtual = usuarioAtual;
 
 
 // ==========================================
