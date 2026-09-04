@@ -3,7 +3,7 @@
 // CONFIGURAÇÃO DO SUPABASE
 // ==========================================
 
-const SUPABASE_URL = "https://aktkyagpukmhzwagehwc.supabase.co";
+const SUPABASE_URL = "https://aktkyagpukmhzwagehwc.supabase.co/rest/v1/;
 
 const SUPABASE_PUBLISHABLE_KEY =
   "sb_publishable__16Kye0vZZPsoXBH43K4Dg_etVDZGQo";
