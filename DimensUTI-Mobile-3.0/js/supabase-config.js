@@ -5,8 +5,7 @@
 
 const SUPABASE_URL = "https://aktkyagpukmhzwagehwc.supabase.co";
 
-// Cole aqui a sua PUBLISHABLE KEY do Supabase
-const SUPABASE_PUBLISHABLE_KEY = "COLE_AQUI_SUA_PUBLISHABLE_KEY";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable__16Kye0vZZPsoXBH43K4Dg_etVDZGQo";
 
 // Cria a conexão com o Supabase
 const supabaseClient = supabase.createClient(
