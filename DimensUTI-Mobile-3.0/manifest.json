@@ -1,0 +1,17 @@
+{
+  "name": "DimensUTI Mobile - Dia de Treinamento",
+  "short_name": "DimensUTI",
+  "description": "Apoio ao dimensionamento e organização do plantão de enfermagem.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f8",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "assets/logo-dia-de-treinamento.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
