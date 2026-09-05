@@ -348,7 +348,71 @@ async function atualizarStatusAssinatura() {
 // ==========================================
 // ATUALIZAR INDICADOR DO TESTE
 // ==========================================
+// ==========================================
+// ATUALIZAR DADOS DA MINHA CONTA
+// ==========================================
 
+function atualizarMinhaConta(assinatura) {
+
+  const email =
+    document.getElementById("conta-email");
+
+  const plano =
+    document.getElementById("conta-plano");
+
+  const plantoes =
+    document.getElementById("conta-plantoes");
+
+
+  if (email) {
+    email.textContent =
+      usuarioAtual?.email || "—";
+  }
+
+
+  if (!assinatura) {
+
+    if (plano) {
+      plano.textContent = "—";
+    }
+
+    if (plantoes) {
+      plantoes.textContent = "—";
+    }
+
+    return;
+  }
+
+
+  const usados =
+    assinatura["plantões_gratuitos_usados"] || 0;
+
+  const limite =
+    assinatura.limite_gratuito || 3;
+
+
+  const assinaturaAtiva =
+    assinatura.status === "active" &&
+    assinatura.vencimento_assinatura &&
+    new Date(assinatura.vencimento_assinatura) > new Date();
+
+
+  if (plano) {
+
+    plano.textContent =
+      assinaturaAtiva
+        ? "Assinatura anual ativa"
+        : "Período gratuito";
+  }
+
+
+  if (plantoes) {
+
+    plantoes.textContent =
+      `${usados} de ${limite} utilizados`;
+  }
+
+}
 function atualizarIndicadorTrial(assinatura) {
 
   const indicador =
