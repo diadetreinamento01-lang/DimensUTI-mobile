@@ -616,3 +616,76 @@ body.dark-mode .staff-row select{
   color:#e5e7eb;
   border-color:#334155;
 }
+
+
+/* ==========================================
+   CADÊ A ESCALA? — FUNDOS HOSPITALARES
+========================================== */
+
+body{
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-attachment:fixed;
+}
+
+/* Camada clara sobre a imagem para manter a leitura */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:rgba(244,246,248,.86);
+  pointer-events:none;
+  z-index:-1;
+}
+
+/* Fundo da tela inicial */
+body.bg-inicio{
+  background-image:url("../assets/backgrounds/bg-inicio.png");
+}
+
+/* Fundo da tela de leitos */
+body.bg-leitos{
+  background-image:url("../assets/backgrounds/bg-leitos.png");
+}
+
+/* Fundo da escala assistencial */
+body.bg-escala{
+  background-image:url("../assets/backgrounds/bg-escala.png");
+}
+
+/* Fundo da passagem de plantão */
+body.bg-passagem{
+  background-image:url("../assets/backgrounds/bg-passagem.png");
+}
+
+/* Fundo da comunidade */
+body.bg-comunidade{
+  background-image:url("../assets/backgrounds/bg-comunidade.png");
+}
+
+/* Fundo da educação */
+body.bg-educacao{
+  background-image:url("../assets/backgrounds/bg-educacao.png");
+}
+
+/* Mantém os cards legíveis sobre as fotografias */
+.card,
+.stat-card,
+.bed-card,
+.history-card,
+.assignment-card{
+  backdrop-filter:blur(4px);
+}
+
+/* Ajuste específico para celulares */
+@media(max-width:700px){
+  body{
+    background-attachment:scroll;
+  }
+}
+
+/* Fundos no modo escuro */
+body.dark-mode::before{
+  background:rgba(11,17,32,.82);
+}
