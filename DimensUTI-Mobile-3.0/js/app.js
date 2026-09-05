@@ -578,6 +578,33 @@ function showTab(id) {
     atualizarDashboard();
   }
 
+    // Troca o fundo conforme a tela aberta
+  const classesDeFundo = [
+    "bg-inicio",
+    "bg-leitos",
+    "bg-escala",
+    "bg-passagem",
+    "bg-comunidade",
+    "bg-educacao"
+  ];
+
+  document.body.classList.remove(...classesDeFundo);
+
+  const fundoPorTela = {
+    inicio: "bg-inicio",
+    leitos: "bg-leitos",
+    dimensionamento: "bg-escala",
+    plantao: "bg-passagem",
+    comunidade: "bg-comunidade",
+    educacao: "bg-educacao"
+  };
+
+  const fundoAtual = fundoPorTela[id];
+
+  if (fundoAtual) {
+    document.body.classList.add(fundoAtual);
+  }
+
 
   window.scrollTo({
     top: 0,
