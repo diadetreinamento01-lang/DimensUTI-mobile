@@ -332,7 +332,7 @@ async function atualizarStatusAssinatura() {
 
     atualizarIndicadorTrial(data);
 
-
+atualizarMinhaConta(data);
   } catch (erro) {
 
     console.error(
