@@ -1,5 +1,5 @@
 // ==========================================
-// ESCALA ASSISTENCIAL 4.1
+// CADÊ A ESCALA? 4.2
 // Dia de Treinamento
 // ==========================================
 
@@ -107,6 +107,10 @@ const state = {
 
   alteracoesEscala: [],
 
+  // Profissional que assume temporariamente a função de Apoio
+  // apenas no plantão atual. Não altera a escala-base.
+  apoioTemporarioId: null,
+
   ui: {
     dark: false
   }
@@ -212,7 +216,6 @@ function toast(mensagem) {
 
 function gerarIdentificadores(config) {
 
-  // Agora suporta setores maiores.
   const quantidade = Math.max(
     1,
     Math.min(500, Number(config.qtdLeitos) || 10)
@@ -266,7 +269,11 @@ function criarLeito(id) {
     pendenciasExames: "",
     acontecimentos: "",
     condutas: "",
-    passagem: ""
+    passagem: "",
+
+    avaliacaoImportada: false,
+    importadoEm: null,
+    confirmadoNoPlantaoAtual: true
   };
 }
 
@@ -453,6 +460,9 @@ function carregarDados() {
 
       state.alteracoesEscala =
         salvo.alteracoesEscala || [];
+
+      state.apoioTemporarioId =
+        salvo.apoioTemporarioId || null;
 
       state.ui = {
         ...state.ui,
@@ -687,8 +697,6 @@ function aplicarConfiguracaoLeitos() {
 
   normalizarLeitos();
 
-  // Não apagamos a escala silenciosamente.
-  // Apenas removemos referências a leitos que deixaram de existir.
   limparLeitosInexistentesDaEscala();
 
   salvarDados(false);
@@ -813,8 +821,6 @@ function nivelIndice(valor) {
 
   return "Menor carga registrada";
 }
-
-
 // ==========================================
 // RENDERIZAÇÃO DOS LEITOS
 // ==========================================
@@ -876,9 +882,20 @@ function renderizarLeitos() {
 
 
       const indice =
-        calcularIndiceOperacional(
-          leito
-        );
+        calcularIndiceOperacional(leito);
+
+
+      const avisoImportacao =
+        leito.avaliacaoImportada &&
+        !leito.confirmadoNoPlantaoAtual
+          ? `
+              <div class="alert-box">
+                📥 <strong>Avaliação importada do plantão anterior.</strong>
+                <br>
+                Ainda não confirmada pelo enfermeiro atual.
+              </div>
+            `
+          : "";
 
 
       return `
@@ -904,6 +921,7 @@ function renderizarLeitos() {
 
           </div>
 
+          ${avisoImportacao}
 
           <div class="bed-meta">
 
@@ -958,6 +976,7 @@ function renderizarLeitos() {
 
           <button
             class="secondary-btn"
+            type="button"
             onclick="abrirLeito(
               '${encodeURIComponent(
                 String(leito.id)
@@ -1064,6 +1083,53 @@ function abrirLeito(encodedId) {
   }
 
 
+  const avisoImportado =
+    leito.avaliacaoImportada &&
+    !leito.confirmadoNoPlantaoAtual
+      ? `
+          <div class="alert-box">
+
+            📥 <strong>AVALIAÇÃO IMPORTADA DO PLANTÃO ANTERIOR</strong>
+
+            <br><br>
+
+            Estes dados foram recebidos de outro plantão
+            e ainda não foram confirmados pelo enfermeiro atual.
+
+            <br><br>
+
+            Confira a condição atual do paciente antes
+            de utilizar esta avaliação no plantão.
+
+            <div style="margin-top:12px;">
+
+              <button
+                class="primary-btn"
+                type="button"
+                onclick="confirmarAvaliacaoImportada(
+                  '${encodeURIComponent(String(leito.id))}'
+                )"
+              >
+                ✅ Manter avaliação
+              </button>
+
+              <button
+                class="secondary-btn"
+                type="button"
+                onclick="reavaliarLeitoImportado(
+                  '${encodeURIComponent(String(leito.id))}'
+                )"
+              >
+                📝 Reavaliar
+              </button>
+
+            </div>
+
+          </div>
+        `
+      : "";
+
+
   detalhe.innerHTML = `
 
     <div class="detail-title">
@@ -1094,6 +1160,8 @@ function abrirLeito(encodedId) {
       do paciente.
 
     </div>
+
+    ${avisoImportado}
 
 
     <div class="card form-card">
@@ -1233,6 +1301,7 @@ function abrirLeito(encodedId) {
 
       <button
         class="primary-btn full"
+        type="button"
         onclick="salvarLeito(
           '${encodeURIComponent(
             String(leito.id)
@@ -1249,6 +1318,89 @@ function abrirLeito(encodedId) {
   showTab("leito-detalhe");
 }
 
+
+// ==========================================
+// CONFIRMAÇÃO DE AVALIAÇÃO IMPORTADA
+// ==========================================
+
+function confirmarAvaliacaoImportada(encodedId) {
+
+  const id =
+    decodeURIComponent(encodedId);
+
+  const leito =
+    state.leitos.find(
+      item =>
+        String(item.id) === String(id)
+    );
+
+  if (!leito) {
+    return;
+  }
+
+
+  const confirmar = confirm(
+    `Confirma que você revisou a avaliação importada do leito ${id} e deseja mantê-la no plantão atual?`
+  );
+
+  if (!confirmar) {
+    return;
+  }
+
+
+  leito.confirmadoNoPlantaoAtual = true;
+
+  salvarDados(false);
+
+  abrirLeito(
+    encodeURIComponent(String(id))
+  );
+
+  toast(
+    `Avaliação do leito ${id} confirmada para o plantão atual.`
+  );
+}
+
+
+function reavaliarLeitoImportado(encodedId) {
+
+  const id =
+    decodeURIComponent(encodedId);
+
+  const leito =
+    state.leitos.find(
+      item =>
+        String(item.id) === String(id)
+    );
+
+  if (!leito) {
+    return;
+  }
+
+
+  leito.confirmadoNoPlantaoAtual = false;
+
+  const campo =
+    document.getElementById(
+      "det-gravidade"
+    );
+
+  campo?.focus();
+
+  campo?.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  toast(
+    `Revise os dados do leito ${id} e salve a nova avaliação.`
+  );
+}
+
+
+// ==========================================
+// SALVAR LEITO
+// ==========================================
 
 function salvarLeito(encodedId) {
 
@@ -1325,6 +1477,10 @@ function salvarLeito(encodedId) {
       "det-passagem"
     ).value.trim();
 
+
+  // Ao salvar, o enfermeiro atual assume a revisão
+  // daquela avaliação, inclusive quando veio importada.
+  leito.confirmadoNoPlantaoAtual = true;
 
   recalcularCargasDimensionamento();
 
@@ -1469,6 +1625,7 @@ function renderizarProfissionais() {
 
           <button
             class="small-btn"
+            type="button"
             onclick="removerProfissional(
               ${indice}
             )"
@@ -1481,8 +1638,341 @@ function renderizarProfissionais() {
 
       `
     ).join("");
+
+
+  renderizarControleApoio();
 }
 
+
+// ==========================================
+// CONTROLE DO APOIO
+// ==========================================
+
+function profissionaisApoio() {
+
+  return state.profissionais.filter(
+    profissional =>
+      profissional.nome?.trim() &&
+      profissional.tipo === "Apoio"
+  );
+}
+
+
+function apoioPresente() {
+
+  return profissionaisApoio().find(
+    profissional =>
+      profissional.situacao === "presente" ||
+      profissional.situacao === "cobertura"
+  ) || null;
+}
+
+
+function apoioTemporario() {
+
+  if (!state.apoioTemporarioId) {
+    return null;
+  }
+
+  return state.profissionais.find(
+    profissional =>
+      profissional.id ===
+      state.apoioTemporarioId
+  ) || null;
+}
+
+
+function renderizarControleApoio() {
+
+  const lista =
+    document.getElementById(
+      "lista-profissionais"
+    );
+
+  if (!lista) {
+    return;
+  }
+
+
+  let painel =
+    document.getElementById(
+      "controle-apoio-plantao"
+    );
+
+  if (!painel) {
+
+    painel =
+      document.createElement("div");
+
+    painel.id =
+      "controle-apoio-plantao";
+
+    painel.className =
+      "card";
+
+    lista.insertAdjacentElement(
+      "afterend",
+      painel
+    );
+  }
+
+
+  const apoio =
+    apoioPresente();
+
+  const temporario =
+    apoioTemporario();
+
+
+  if (apoio) {
+
+    painel.innerHTML = `
+
+      <h3>
+        🩺 Apoio do plantão
+      </h3>
+
+      <p>
+        <strong>
+          ${escapeHtml(apoio.nome)}
+        </strong>
+        está definido como Apoio.
+      </p>
+
+      <div class="alert-box">
+
+        O profissional de Apoio não participa
+        do rodízio regular de pacientes.
+
+        Ele pode receber paciente/leito somente
+        como exceção quando houver necessidade
+        assistencial ou desfalque.
+
+      </div>
+
+    `;
+
+    return;
+  }
+
+
+  const candidatos =
+    state.profissionais.filter(
+      profissional =>
+        profissional.nome?.trim() &&
+        profissional.tipo === "Técnico" &&
+        (
+          profissional.situacao === "presente" ||
+          profissional.situacao === "cobertura"
+        )
+    );
+
+
+  painel.innerHTML = `
+
+    <h3>
+      🩺 Apoio do plantão
+    </h3>
+
+    ${
+      profissionaisApoio().length
+        ? `
+            <div class="alert-box">
+              ⚠️ O profissional cadastrado como Apoio
+              está ausente neste plantão.
+            </div>
+          `
+        : `
+            <p class="muted">
+              Nenhum profissional fixo foi definido
+              como Apoio.
+            </p>
+          `
+    }
+
+    ${
+      temporario
+        ? `
+            <p>
+              Apoio temporário:
+              <strong>
+                ${escapeHtml(
+                  temporario.nome
+                )}
+              </strong>
+            </p>
+
+            <p class="muted">
+              Esta função vale somente para o plantão atual
+              e não altera a escala-base.
+            </p>
+
+            <button
+              class="secondary-btn full"
+              type="button"
+              onclick="removerApoioTemporario()"
+            >
+              ↩️ Remover Apoio temporário
+            </button>
+          `
+        : candidatos.length
+          ? `
+              <label>
+                Definir Apoio temporário
+              </label>
+
+              <select
+                id="select-apoio-temporario"
+              >
+                <option value="">
+                  Selecione um profissional
+                </option>
+
+                ${
+                  candidatos.map(
+                    profissional => `
+                      <option
+                        value="${profissional.id}"
+                      >
+                        ${escapeHtml(
+                          profissional.nome
+                        )}
+                      </option>
+                    `
+                  ).join("")
+                }
+
+              </select>
+
+              <button
+                class="secondary-btn full"
+                type="button"
+                onclick="definirApoioTemporario()"
+              >
+                🩺 Definir Apoio somente neste plantão
+              </button>
+            `
+          : `
+              <p class="muted">
+                Não há técnico disponível para assumir
+                temporariamente a função de Apoio.
+              </p>
+            `
+    }
+
+  `;
+}
+
+
+function definirApoioTemporario() {
+
+  const profissionalId =
+    document.getElementById(
+      "select-apoio-temporario"
+    )?.value;
+
+  if (!profissionalId) {
+
+    toast(
+      "Selecione o profissional que ficará como Apoio temporário."
+    );
+
+    return;
+  }
+
+
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id === profissionalId
+    );
+
+  if (!profissional) {
+    return;
+  }
+
+
+  state.apoioTemporarioId =
+    profissional.id;
+
+
+  state.alteracoesEscala.push({
+
+    id: gerarId(),
+
+    data:
+      new Date().toISOString(),
+
+    tipo:
+      "apoio_temporario",
+
+    profissionalId:
+      profissional.id,
+
+    profissional:
+      profissional.nome,
+
+    descricao:
+      `${profissional.nome} assumiu temporariamente a função de Apoio neste plantão.`
+  });
+
+
+  salvarDados(false);
+
+  renderizarControleApoio();
+
+  toast(
+    `${profissional.nome} definido como Apoio temporário deste plantão.`
+  );
+}
+
+
+function removerApoioTemporario() {
+
+  const profissional =
+    apoioTemporario();
+
+
+  state.apoioTemporarioId = null;
+
+
+  if (profissional) {
+
+    state.alteracoesEscala.push({
+
+      id: gerarId(),
+
+      data:
+        new Date().toISOString(),
+
+      tipo:
+        "fim_apoio_temporario",
+
+      profissionalId:
+        profissional.id,
+
+      profissional:
+        profissional.nome,
+
+      descricao:
+        `Função temporária de Apoio encerrada para ${profissional.nome}.`
+    });
+  }
+
+
+  salvarDados(false);
+
+  renderizarControleApoio();
+
+  toast(
+    "Apoio temporário removido."
+  );
+}
+
+
+// ==========================================
+// ATUALIZAÇÃO DA EQUIPE
+// ==========================================
 
 function atualizarNomeProfissional(
   indice,
@@ -1503,8 +1993,6 @@ function atualizarNomeProfissional(
     valor.trim();
 
 
-  // Atualiza a exibição da escala atual
-  // sem perder o vínculo pelo ID.
   [
     state.dimensionamento,
     state.escalaBase
@@ -1516,15 +2004,16 @@ function atualizarNomeProfissional(
         grupo.profissionalId ===
         profissional.id
       ) {
+
         grupo.profissional =
           profissional.nome;
       }
 
-      // Compatibilidade com dados antigos
       else if (
         !grupo.profissionalId &&
         grupo.profissional === nomeAntigo
       ) {
+
         grupo.profissionalId =
           profissional.id;
 
@@ -1544,14 +2033,34 @@ function atualizarTipoProfissional(
   valor
 ) {
 
-  if (!state.profissionais[indice]) {
+  const profissional =
+    state.profissionais[indice];
+
+  if (!profissional) {
     return;
   }
 
-  state.profissionais[indice].tipo =
-    valor;
+
+  profissional.tipo = valor;
+
+
+  // Um Apoio fixo não pode continuar marcado
+  // simultaneamente como Apoio temporário.
+  if (
+    valor === "Apoio" &&
+    state.apoioTemporarioId ===
+      profissional.id
+  ) {
+
+    state.apoioTemporarioId = null;
+  }
+
 
   salvarDados(false);
+
+  renderizarProfissionais();
+
+  renderizarResultadoDimensionamento();
 }
 
 
@@ -1573,9 +2082,22 @@ function atualizarSituacaoProfissional(
     valor === "presente" ||
     valor === "cobertura";
 
+
+  if (
+    state.apoioTemporarioId ===
+      profissional.id &&
+    !profissional.ativo
+  ) {
+
+    state.apoioTemporarioId = null;
+  }
+
+
   salvarDados(false);
 
   renderizarResultadoDimensionamento();
+
+  renderizarControleApoio();
 }
 
 
@@ -1591,6 +2113,7 @@ function adicionarProfissional() {
   });
 
   salvarDados(false);
+
   renderizarProfissionais();
 }
 
@@ -1626,6 +2149,15 @@ function removerProfissional(indice) {
   }
 
 
+  if (
+    state.apoioTemporarioId ===
+    profissional.id
+  ) {
+
+    state.apoioTemporarioId = null;
+  }
+
+
   state.profissionais.splice(
     indice,
     1
@@ -1646,12 +2178,13 @@ function removerProfissional(indice) {
   salvarDados(false);
 
   renderizarProfissionais();
+
   renderizarResultadoDimensionamento();
 }
 
 
 // ==========================================
-// PROFISSIONAIS DISPONÍVEIS
+// PROFISSIONAIS DISPONÍVEIS PARA ESCALA
 // ==========================================
 
 function profissionaisParaEscala() {
@@ -1659,7 +2192,16 @@ function profissionaisParaEscala() {
   return state.profissionais.filter(
     profissional =>
       profissional.nome?.trim() &&
+
+      // Apoio fixo NÃO participa
+      // da distribuição regular.
       profissional.tipo === "Técnico" &&
+
+      // Apoio temporário também não entra
+      // automaticamente na distribuição regular.
+      profissional.id !==
+        state.apoioTemporarioId &&
+
       (
         profissional.situacao ===
           "presente" ||
@@ -1679,6 +2221,303 @@ function tecnicosAtuais() {
 }
 
 
+// ==========================================
+// PROFISSIONAIS QUE PODEM RECEBER LEITO
+// ==========================================
+
+function profissionaisQuePodemReceberLeito() {
+
+  return state.profissionais.filter(
+    profissional =>
+      profissional.nome?.trim() &&
+      (
+        profissional.situacao ===
+          "presente" ||
+        profissional.situacao ===
+          "cobertura"
+      ) &&
+      (
+        profissional.tipo === "Técnico" ||
+        profissional.tipo === "Apoio"
+      )
+  );
+}
+
+
+// ==========================================
+// ATRIBUIÇÃO EXCEPCIONAL AO APOIO
+// ==========================================
+
+function atribuirLeitoAoApoio() {
+
+  const apoiosDisponiveis =
+    state.profissionais.filter(
+      profissional =>
+        profissional.nome?.trim() &&
+        (
+          profissional.tipo === "Apoio" ||
+          profissional.id ===
+            state.apoioTemporarioId
+        ) &&
+        (
+          profissional.situacao ===
+            "presente" ||
+          profissional.situacao ===
+            "cobertura"
+        )
+    );
+
+
+  if (!apoiosDisponiveis.length) {
+
+    toast(
+      "Não existe profissional de Apoio disponível neste plantão."
+    );
+
+    return;
+  }
+
+
+  if (!state.dimensionamento) {
+
+    toast(
+      "Monte primeiro a distribuição do plantão."
+    );
+
+    return;
+  }
+
+
+  const leitosDisponiveis =
+    state.leitos.filter(
+      leito =>
+        !leitoEstaAtribuido(leito.id)
+    );
+
+
+  const todosLeitos =
+    state.leitos.map(
+      leito => String(leito.id)
+    );
+
+
+  const sugestaoMenorCarga =
+    [...state.leitos]
+      .sort(
+        (a, b) =>
+          calcularIndiceOperacional(a) -
+          calcularIndiceOperacional(b)
+      )[0];
+
+
+  const escolhaLeito =
+    prompt(
+      `Informe o leito que será atribuído excepcionalmente ao Apoio.\n\nLeitos: ${todosLeitos.join(", ")}\n\nPaciente com menor índice operacional registrado neste momento: ${
+        sugestaoMenorCarga?.id || "não disponível"
+      }\n\nSe o leito já estiver com outro profissional, ele será transferido somente após sua confirmação.`
+    );
+
+
+  if (!escolhaLeito) {
+    return;
+  }
+
+
+  const leito =
+    state.leitos.find(
+      item =>
+        String(item.id)
+          .toLowerCase() ===
+        String(escolhaLeito)
+          .trim()
+          .toLowerCase()
+    );
+
+
+  if (!leito) {
+
+    toast(
+      "Leito informado não encontrado."
+    );
+
+    return;
+  }
+
+
+  let apoioSelecionado =
+    apoiosDisponiveis[0];
+
+
+  if (apoiosDisponiveis.length > 1) {
+
+    const lista =
+      apoiosDisponiveis
+        .map(
+          (profissional, indice) =>
+            `${indice + 1} - ${profissional.nome}`
+        )
+        .join("\n");
+
+
+    const escolha =
+      prompt(
+        `Qual profissional de Apoio receberá o leito ${leito.id}?\n\n${lista}\n\nDigite o número.`
+      );
+
+
+    if (!escolha) {
+      return;
+    }
+
+
+    apoioSelecionado =
+      apoiosDisponiveis[
+        Number(escolha) - 1
+      ];
+
+
+    if (!apoioSelecionado) {
+
+      toast(
+        "Profissional de Apoio inválido."
+      );
+
+      return;
+    }
+  }
+
+
+  let grupoOrigem = null;
+
+
+  state.dimensionamento.grupos.forEach(
+    grupo => {
+
+      if (
+        (grupo.leitos || []).some(
+          item =>
+            String(item.id) ===
+            String(leito.id)
+        )
+      ) {
+
+        grupoOrigem = grupo;
+      }
+    }
+  );
+
+
+  if (grupoOrigem) {
+
+    const confirmar =
+      confirm(
+        `O leito ${leito.id} está atualmente com ${grupoOrigem.profissional}.\n\nDeseja transferi-lo excepcionalmente para ${apoioSelecionado.nome} neste plantão?`
+      );
+
+    if (!confirmar) {
+      return;
+    }
+
+
+    grupoOrigem.leitos =
+      grupoOrigem.leitos.filter(
+        item =>
+          String(item.id) !==
+          String(leito.id)
+      );
+  }
+
+
+  let grupoApoio =
+    state.dimensionamento.grupos.find(
+      grupo =>
+        grupo.profissionalId ===
+        apoioSelecionado.id
+    );
+
+
+  if (!grupoApoio) {
+
+    grupoApoio = {
+      profissionalId:
+        apoioSelecionado.id,
+
+      profissional:
+        apoioSelecionado.nome,
+
+      tipo:
+        apoioSelecionado.tipo === "Apoio"
+          ? "Apoio"
+          : "Apoio temporário",
+
+      leitos: [],
+
+      carga: 0,
+
+      atribuicaoExcepcional: true
+    };
+
+    state.dimensionamento.grupos.push(
+      grupoApoio
+    );
+  }
+
+
+  const jaPossui =
+    grupoApoio.leitos.some(
+      item =>
+        String(item.id) ===
+        String(leito.id)
+    );
+
+
+  if (!jaPossui) {
+
+    grupoApoio.leitos.push({
+      id: String(leito.id),
+      peso:
+        calcularIndiceOperacional(leito)
+    });
+  }
+
+
+  state.alteracoesEscala.push({
+
+    id: gerarId(),
+
+    data:
+      new Date().toISOString(),
+
+    tipo:
+      "atribuicao_excepcional_apoio",
+
+    leito:
+      String(leito.id),
+
+    profissionalId:
+      apoioSelecionado.id,
+
+    profissional:
+      apoioSelecionado.nome,
+
+    origem:
+      grupoOrigem?.profissional || null,
+
+    descricao:
+      `Leito ${leito.id} atribuído excepcionalmente ao Apoio ${apoioSelecionado.nome} neste plantão.`
+  });
+
+
+  recalcularCargasDimensionamento();
+
+  salvarDados(false);
+
+  renderizarResultadoDimensionamento();
+
+  toast(
+    `Leito ${leito.id} atribuído excepcionalmente a ${apoioSelecionado.nome}.`
+  );
+}
 // ==========================================
 // PRIMEIRA ESCALA MANUAL
 // ==========================================
@@ -1806,6 +2645,10 @@ function sincronizarEquipeDaTela() {
 }
 
 
+// ==========================================
+// SINCRONIZAR GRUPOS COM A EQUIPE
+// ==========================================
+
 function sincronizarGruposComEquipe() {
 
   if (!state.dimensionamento) {
@@ -1813,8 +2656,38 @@ function sincronizarGruposComEquipe() {
   }
 
 
-  const profissionais =
+  const regulares =
     profissionaisParaEscala();
+
+
+  const apoios =
+    state.profissionais.filter(
+      profissional =>
+        profissional.nome?.trim() &&
+        (
+          profissional.tipo === "Apoio" ||
+          profissional.id ===
+            state.apoioTemporarioId
+        ) &&
+        (
+          profissional.situacao ===
+            "presente" ||
+          profissional.situacao ===
+            "cobertura"
+        )
+    );
+
+
+  const profissionais = [
+    ...regulares,
+    ...apoios
+  ].filter(
+    (profissional, indice, lista) =>
+      lista.findIndex(
+        item =>
+          item.id === profissional.id
+      ) === indice
+  );
 
 
   profissionais.forEach(
@@ -1831,13 +2704,18 @@ function sincronizarGruposComEquipe() {
       if (!existente) {
 
         state.dimensionamento.grupos.push({
+
           profissionalId:
             profissional.id,
+
           profissional:
             profissional.nome,
+
           tipo:
             profissional.tipo,
+
           leitos: [],
+
           carga: 0
         });
       }
@@ -1857,6 +2735,10 @@ function sincronizarGruposComEquipe() {
   recalcularCargasDimensionamento();
 }
 
+
+// ==========================================
+// VERIFICAR ATRIBUIÇÃO DO LEITO
+// ==========================================
 
 function leitoEstaAtribuido(
   leitoId,
@@ -1889,6 +2771,63 @@ function leitoEstaAtribuido(
 }
 
 
+// ==========================================
+// IDENTIFICAR APOIO
+// ==========================================
+
+function profissionalEhApoio(
+  profissionalId
+) {
+
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id === profissionalId
+    );
+
+
+  return (
+    profissional?.tipo === "Apoio" ||
+    profissionalId ===
+      state.apoioTemporarioId
+  );
+}
+
+
+function descricaoTipoApoio(
+  profissionalId
+) {
+
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id === profissionalId
+    );
+
+
+  if (
+    profissional?.tipo === "Apoio"
+  ) {
+    return "APOIO";
+  }
+
+
+  if (
+    profissionalId ===
+    state.apoioTemporarioId
+  ) {
+    return "APOIO TEMPORÁRIO";
+  }
+
+
+  return "";
+}
+
+
+// ==========================================
+// EDITOR DA ESCALA MANUAL
+// ==========================================
+
 function renderizarEditorEscalaManual() {
 
   const editor =
@@ -1904,7 +2843,9 @@ function renderizarEditorEscalaManual() {
   if (!state.dimensionamento) {
 
     editor.innerHTML = "";
+
     editor.classList.add("hidden");
+
     return;
   }
 
@@ -1922,8 +2863,18 @@ function renderizarEditorEscalaManual() {
 
       <br><br>
 
-      Não existe limite máximo de pacientes por
-      técnico.
+      Não existe limite máximo de pacientes
+      por técnico.
+
+      <br><br>
+
+      🩺 O profissional definido como
+      <strong>Apoio</strong> fica fora do
+      rodízio regular.
+
+      Se ele receber paciente/leito,
+      essa atribuição será considerada
+      uma exceção do plantão atual.
 
     </div>
 
@@ -1950,6 +2901,7 @@ function renderizarEditorEscalaManual() {
         ) {
 
           return `
+
             <div class="assignment-card">
 
               <h4>
@@ -1959,17 +2911,34 @@ function renderizarEditorEscalaManual() {
               </h4>
 
               <p>
+
                 ${
                   profissional.situacao ===
-                  "troca"
+                    "troca"
+
                     ? "🔄 De troca — não participa deste plantão."
+
                     : "⚪ Ausente neste plantão."
                 }
+
               </p>
 
             </div>
+
           `;
         }
+
+
+        const apoio =
+          profissionalEhApoio(
+            grupo.profissionalId
+          );
+
+
+        const descricaoApoio =
+          descricaoTipoApoio(
+            grupo.profissionalId
+          );
 
 
         return `
@@ -1977,18 +2946,54 @@ function renderizarEditorEscalaManual() {
           <div class="assignment-card">
 
             <h4>
+
               👤 ${escapeHtml(
                 grupo.profissional
               )}
+
+              ${
+                apoio
+                  ? ` • ${descricaoApoio}`
+                  : ""
+              }
+
             </h4>
+
+
+            ${
+              apoio
+
+                ? `
+
+                    <div class="alert-box">
+
+                      🩺 ${descricaoApoio}
+
+                      <br><br>
+
+                      Este profissional não participa
+                      do rodízio regular.
+
+                      Pacientes/leitos atribuídos aqui
+                      serão considerados exceção
+                      deste plantão.
+
+                    </div>
+
+                  `
+
+                : ""
+            }
 
 
             <p class="muted">
 
               ${
                 profissional?.situacao ===
-                "cobertura"
+                  "cobertura"
+
                   ? "🟡 Cobertura de outro plantão"
+
                   : "🟢 Presente"
               }
 
@@ -2028,17 +3033,20 @@ function renderizarEditorEscalaManual() {
 
                       <input
                         type="checkbox"
+
                         ${
                           selecionado
                             ? "checked"
                             : ""
                         }
+
                         ${
                           atribuidoOutro &&
                           !selecionado
                             ? "disabled"
                             : ""
                         }
+
                         onchange="
                           alternarLeitoProfissional(
                             '${grupo.profissionalId}',
@@ -2057,7 +3065,9 @@ function renderizarEditorEscalaManual() {
                       ${
                         atribuidoOutro &&
                         !selecionado
+
                           ? " • já atribuído"
+
                           : ""
                       }
 
@@ -2087,6 +3097,7 @@ function renderizarEditorEscalaManual() {
             </div>
 
           </div>
+
         `;
 
       }).join("")
@@ -2095,6 +3106,7 @@ function renderizarEditorEscalaManual() {
 
     <button
       class="primary-btn full"
+      type="button"
       onclick="salvarEscalaManual()"
     >
       💾 Salvar escala manual
@@ -2103,19 +3115,29 @@ function renderizarEditorEscalaManual() {
 
     ${
       state.escalaBase
+
         ? `
+
           <button
             class="secondary-btn full"
+            type="button"
             onclick="restaurarEscalaBase()"
           >
             ↩️ Voltar à escala-base
           </button>
+
         `
+
         : ""
     }
+
   `;
 }
 
+
+// ==========================================
+// MARCAR / DESMARCAR LEITO
+// ==========================================
 
 function alternarLeitoProfissional(
   profissionalId,
@@ -2172,6 +3194,59 @@ function alternarLeitoProfissional(
     }
 
 
+    const profissional =
+      state.profissionais.find(
+        item =>
+          item.id ===
+          profissionalId
+      );
+
+
+    if (
+      profissionalEhApoio(
+        profissionalId
+      )
+    ) {
+
+      const confirmarApoio =
+        confirm(
+          `${profissional?.nome || "Este profissional"} está atuando como Apoio.\n\nDeseja atribuir o leito ${leitoId} excepcionalmente ao Apoio neste plantão?\n\nEsta atribuição não será incorporada ao rodízio regular.`
+        );
+
+
+      if (!confirmarApoio) {
+
+        renderizarEditorEscalaManual();
+
+        return;
+      }
+
+
+      state.alteracoesEscala.push({
+
+        id: gerarId(),
+
+        data:
+          new Date().toISOString(),
+
+        tipo:
+          "atribuicao_excepcional_apoio",
+
+        leito:
+          String(leitoId),
+
+        profissionalId:
+          profissionalId,
+
+        profissional:
+          profissional?.nome || "",
+
+        descricao:
+          `Leito ${leitoId} atribuído excepcionalmente ao Apoio neste plantão.`
+      });
+    }
+
+
     const existe =
       grupo.leitos.some(
         item =>
@@ -2191,7 +3266,10 @@ function alternarLeitoProfissional(
 
 
       grupo.leitos.push({
-        id: String(leitoId),
+
+        id:
+          String(leitoId),
+
         peso:
           calcularIndiceOperacional(
             leito || {}
@@ -2219,6 +3297,10 @@ function alternarLeitoProfissional(
   renderizarEditorEscalaManual();
 }
 
+
+// ==========================================
+// SALVAR ESCALA MANUAL
+// ==========================================
 
 function salvarEscalaManual() {
 
@@ -2275,19 +3357,48 @@ function salvarEscalaManual() {
   state.dimensionamento.modo =
     "manual";
 
+
   state.dimensionamento.geradoEm =
     new Date()
       .toLocaleString("pt-BR");
 
 
-  // A primeira escala manual salva
-  // torna-se a escala-base.
+  // ========================================
+  // PRIMEIRA ESCALA = ESCALA-BASE
+  // ========================================
+
   if (!state.escalaBase) {
 
     state.escalaBase =
       copiarObjeto(
         state.dimensionamento
       );
+
+
+    // Apoio não carrega pacientes para
+    // a escala-base / rodízio futuro.
+    state.escalaBase.grupos =
+      (
+        state.escalaBase.grupos || []
+      ).map(grupo => {
+
+        if (
+          profissionalEhApoio(
+            grupo.profissionalId
+          )
+        ) {
+
+          return {
+            ...grupo,
+            leitos: [],
+            carga: 0
+          };
+        }
+
+
+        return grupo;
+      });
+
 
     toast(
       "Primeira escala manual salva como escala-base."
@@ -2298,7 +3409,8 @@ function salvarEscalaManual() {
 
     state.alteracoesEscala.push({
 
-      id: gerarId(),
+      id:
+        gerarId(),
 
       data:
         new Date().toISOString(),
@@ -2309,6 +3421,7 @@ function salvarEscalaManual() {
       descricao:
         "Distribuição do plantão editada manualmente."
     });
+
 
     toast(
       "Alteração manual salva para este plantão."
@@ -2326,17 +3439,19 @@ function salvarEscalaManual() {
 
   renderizarResultadoDimensionamento();
 
+
   const editor =
     document.getElementById(
       "editor-escala-manual"
     );
+
 
   editor?.classList.add("hidden");
 }
 
 
 // ==========================================
-// RESULTADO / EDIÇÃO DA DISTRIBUIÇÃO
+// RECALCULAR CARGAS
 // ==========================================
 
 function recalcularCargasDimensionamento() {
@@ -2360,8 +3475,12 @@ function recalcularCargasDimensionamento() {
                   String(item.id)
               );
 
+
             return {
-              id: String(item.id),
+
+              id:
+                String(item.id),
+
               peso:
                 calcularIndiceOperacional(
                   leito || {}
@@ -2384,6 +3503,10 @@ function recalcularCargasDimensionamento() {
   );
 }
 
+
+// ==========================================
+// RESULTADO DA DISTRIBUIÇÃO
+// ==========================================
 
 function renderizarResultadoDimensionamento() {
 
@@ -2429,14 +3552,6 @@ function renderizarResultadoDimensionamento() {
     );
 
 
-  const maximo =
-    Math.max(...cargas, 0);
-
-
-  const minimo =
-    Math.min(...cargas, 0);
-
-
   const totalPacientes =
     grupos.reduce(
       (total, grupo) =>
@@ -2462,10 +3577,18 @@ function renderizarResultadoDimensionamento() {
           </h3>
 
           <p class="muted">
+
             ${
               state.dimensionamento.modo ===
-              "manual"
+                "manual"
+
                 ? "Escala definida manualmente"
+
+                : state.dimensionamento.modo ===
+                    "rodizio_editavel"
+
+                ? "Rodízio aplicado e editável"
+
                 : "Escala preparada pelo sistema"
             }
 
@@ -2473,6 +3596,7 @@ function renderizarResultadoDimensionamento() {
               state.dimensionamento
                 .geradoEm || ""
             )}
+
           </p>
 
         </div>
@@ -2483,30 +3607,41 @@ function renderizarResultadoDimensionamento() {
       <div class="assignment-summary">
 
         <div>
+
           <strong>
             ${grupos.length}
           </strong>
+
           <small>
             Profissionais
           </small>
+
         </div>
 
+
         <div>
+
           <strong>
             ${totalPacientes}
           </strong>
+
           <small>
             Pacientes/leitos
           </small>
+
         </div>
 
+
         <div>
+
           <strong>
             ${totalCarga.toFixed(1)}
           </strong>
+
           <small>
             Carga total
           </small>
+
         </div>
 
       </div>
@@ -2528,14 +3663,34 @@ function renderizarResultadoDimensionamento() {
             "presente";
 
 
+          const apoio =
+            profissionalEhApoio(
+              grupo.profissionalId
+            );
+
+
+          const descricaoApoio =
+            descricaoTipoApoio(
+              grupo.profissionalId
+            );
+
+
           return `
 
             <div class="assignment-card">
 
               <h4>
+
                 👤 ${escapeHtml(
                   grupo.profissional
                 )}
+
+                ${
+                  apoio
+                    ? ` • ${descricaoApoio}`
+                    : ""
+                }
+
               </h4>
 
 
@@ -2543,15 +3698,46 @@ function renderizarResultadoDimensionamento() {
 
                 ${
                   situacao === "cobertura"
+
                     ? "🟡 Cobertura"
+
                     : situacao === "troca"
+
                     ? "🔄 De troca"
+
                     : situacao === "ausente"
+
                     ? "⚪ Ausente"
+
                     : "🟢 Presente"
                 }
 
               </p>
+
+
+              ${
+                apoio
+
+                  ? `
+
+                    <p class="muted">
+
+                      🩺 Fora do rodízio regular.
+
+                      ${
+                        grupo.leitos?.length
+
+                          ? " Possui atribuição excepcional neste plantão."
+
+                          : " Sem pacientes/leitos atribuídos."
+                      }
+
+                    </p>
+
+                  `
+
+                  : ""
+              }
 
 
               <p>
@@ -2579,9 +3765,7 @@ function renderizarResultadoDimensionamento() {
                 Total:
 
                 <strong>
-                  ${
-                    grupo.leitos.length
-                  }
+                  ${grupo.leitos.length}
                 </strong>
 
               </p>
@@ -2590,6 +3774,7 @@ function renderizarResultadoDimensionamento() {
               <span class="workload-score">
 
                 Índice operacional:
+
                 ${
                   Number(
                     grupo.carga || 0
@@ -2601,6 +3786,7 @@ function renderizarResultadoDimensionamento() {
 
               <button
                 class="secondary-btn full"
+                type="button"
                 onclick="
                   editarDistribuicaoProfissional(
                     '${grupo.profissionalId}'
@@ -2613,9 +3799,12 @@ function renderizarResultadoDimensionamento() {
 
               ${
                 grupo.leitos.length
+
                   ? `
+
                     <button
                       class="secondary-btn full"
+                      type="button"
                       onclick="
                         abrirTransferencia(
                           '${grupo.profissionalId}'
@@ -2624,11 +3813,14 @@ function renderizarResultadoDimensionamento() {
                     >
                       ↔️ Transferir paciente/leito
                     </button>
+
                   `
+
                   : ""
               }
 
             </div>
+
           `;
 
         }).join("")
@@ -2637,6 +3829,7 @@ function renderizarResultadoDimensionamento() {
 
       <button
         class="primary-btn full"
+        type="button"
         onclick="iniciarEscalaManual()"
       >
         ✏️ Editar distribuição completa
@@ -2645,38 +3838,69 @@ function renderizarResultadoDimensionamento() {
 
       ${
         state.escalaBase
+
           ? `
+
             <button
               class="secondary-btn full"
+              type="button"
               onclick="restaurarEscalaBase()"
             >
               ↩️ Voltar à escala-base
             </button>
+
           `
+
           : ""
       }
+
+
+      <button
+        class="primary-btn full"
+        type="button"
+        onclick="gerarPDFEscala()"
+      >
+        📄 GERAR ESCALA
+      </button>
+
+
+      <button
+        class="secondary-btn full"
+        type="button"
+        onclick="atribuirLeitoAoApoio()"
+      >
+        🩺 Atribuição excepcional ao Apoio
+      </button>
 
 
       <p class="muted">
 
         ⚠️ A distribuição é uma ferramenta de
-        organização operacional. A decisão final
-        permanece com o profissional responsável,
-        conforme condições reais da unidade,
-        protocolos institucionais e normas aplicáveis.
+        organização operacional.
+
+        A decisão final permanece com o profissional
+        responsável, conforme as condições reais
+        da unidade, protocolos institucionais
+        e normas aplicáveis.
 
       </p>
 
     </div>
+
   `;
 }
 
+
+// ==========================================
+// EDITAR DISTRIBUIÇÃO
+// ==========================================
 
 function editarDistribuicaoProfissional(
   profissionalId
 ) {
 
   iniciarEscalaManual();
+
 
   setTimeout(() => {
 
@@ -2685,24 +3909,32 @@ function editarDistribuicaoProfissional(
         "editor-escala-manual"
       );
 
+
     editor?.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
+
+      behavior:
+        "smooth",
+
+      block:
+        "start"
     });
 
   }, 100);
 }
-
-
 // ==========================================
-// TRANSFERÊNCIA MANUAL
+// TRANSFERÊNCIA DE PACIENTE / LEITO
 // ==========================================
 
 function abrirTransferencia(
   profissionalOrigemId
 ) {
 
-  if (!state.dimensionamento) {
+  if (!state.dimensionamento?.grupos) {
+
+    toast(
+      "Ainda não existe uma distribuição para editar."
+    );
+
     return;
   }
 
@@ -2715,84 +3947,122 @@ function abrirTransferencia(
     );
 
 
-  if (!origem?.leitos?.length) {
+  if (!origem) {
 
     toast(
-      "Este profissional não possui pacientes/leitos para transferir."
+      "Profissional de origem não encontrado."
     );
 
     return;
   }
 
 
-  const opcoesLeitos =
+  if (!origem.leitos?.length) {
+
+    toast(
+      `${origem.profissional} não possui pacientes/leitos para transferir.`
+    );
+
+    return;
+  }
+
+
+  const listaLeitos =
     origem.leitos
       .map(
-        item =>
-          `${item.id}`
+        (item, indice) =>
+          `${indice + 1} - Leito ${item.id}`
       )
-      .join(", ");
+      .join("\n");
 
 
-  const leitoEscolhido =
+  const escolhaLeito =
     prompt(
-      `Qual paciente/leito deseja transferir?\n\nLeitos de ${origem.profissional}: ${opcoesLeitos}`
+      `Qual paciente/leito deseja transferir de ${origem.profissional}?\n\n${listaLeitos}\n\nDigite o número correspondente.`
     );
 
 
-  if (!leitoEscolhido) {
+  if (!escolhaLeito) {
+    return;
+  }
+
+
+  const indiceLeito =
+    Number(escolhaLeito) - 1;
+
+
+  const itemLeito =
+    origem.leitos[indiceLeito];
+
+
+  if (!itemLeito) {
+
+    toast(
+      "Paciente/leito selecionado inválido."
+    );
+
+    return;
+  }
+
+
+  transferirLeito(
+    profissionalOrigemId,
+    String(itemLeito.id)
+  );
+}
+
+
+function transferirLeito(
+  profissionalOrigemId,
+  leitoId
+) {
+
+  if (!state.dimensionamento?.grupos) {
+    return;
+  }
+
+
+  const origem =
+    state.dimensionamento.grupos.find(
+      grupo =>
+        grupo.profissionalId ===
+        profissionalOrigemId
+    );
+
+
+  if (!origem) {
     return;
   }
 
 
   const leito =
-    origem.leitos.find(
+    state.leitos.find(
       item =>
-        String(item.id)
-          .toLowerCase() ===
-        String(leitoEscolhido)
-          .trim()
-          .toLowerCase()
+        String(item.id) ===
+        String(leitoId)
     );
 
 
   if (!leito) {
 
     toast(
-      "Paciente/leito não encontrado com este profissional."
+      "Paciente/leito não encontrado."
     );
 
     return;
   }
 
 
-  const destinos =
-    state.dimensionamento.grupos
+  const profissionaisDisponiveis =
+    profissionaisQuePodemReceberLeito()
       .filter(
-        grupo =>
-          grupo.profissionalId !==
-          profissionalOrigemId
-      )
-      .filter(grupo => {
-
-        const profissional =
-          state.profissionais.find(
-            item =>
-              item.id ===
-              grupo.profissionalId
-          );
-
-        return (
-          !profissional ||
-          profissional.situacao ===
-            "presente" ||
-          profissional.situacao ===
-            "cobertura"
-        );
-      });
+        profissional =>
+          profissional.id !==
+            profissionalOrigemId
+      );
 
 
-  if (!destinos.length) {
+  if (!profissionaisDisponiveis.length) {
 
     toast(
       "Não existe outro profissional disponível para receber este paciente/leito."
@@ -2803,34 +4073,47 @@ function abrirTransferencia(
 
 
   const listaDestinos =
-    destinos
+    profissionaisDisponiveis
       .map(
-        (grupo, indice) =>
-          `${indice + 1} - ${grupo.profissional}`
+        (profissional, indice) => {
+
+          const apoio =
+            profissionalEhApoio(
+              profissional.id
+            );
+
+          return (
+            `${indice + 1} - ` +
+            `${profissional.nome}` +
+            `${
+              apoio
+                ? " (APOIO)"
+                : ""
+            }`
+          );
+        }
       )
       .join("\n");
 
 
-  const escolha =
+  const escolhaDestino =
     prompt(
       `Transferir leito ${leito.id} para:\n\n${listaDestinos}\n\nDigite o número do profissional.`
     );
 
 
-  if (!escolha) {
+  if (!escolhaDestino) {
     return;
   }
 
 
-  const indiceDestino =
-    Number(escolha) - 1;
+  const destinoProfissional =
+    profissionaisDisponiveis[
+      Number(escolhaDestino) - 1
+    ];
 
 
-  const destino =
-    destinos[indiceDestino];
-
-
-  if (!destino) {
+  if (!destinoProfissional) {
 
     toast(
       "Profissional de destino inválido."
@@ -2840,10 +4123,70 @@ function abrirTransferencia(
   }
 
 
+  const destinoEhApoio =
+    profissionalEhApoio(
+      destinoProfissional.id
+    );
+
+
+  if (destinoEhApoio) {
+
+    const confirmarApoio =
+      confirm(
+        `${destinoProfissional.nome} está atuando como Apoio.\n\nDeseja transferir o leito ${leito.id} excepcionalmente para este profissional?\n\nEsta alteração vale somente para o plantão atual e não modifica a escala-base nem o rodízio regular.`
+      );
+
+
+    if (!confirmarApoio) {
+      return;
+    }
+  }
+
+
   const motivo =
     prompt(
-      "Motivo da alteração (opcional):\nEx.: complexidade, isolamento, necessidade do setor..."
+      "Motivo da alteração (opcional):\n\nEx.: complexidade, isolamento, desfalque, necessidade do setor..."
     ) || "";
+
+
+  let destino =
+    state.dimensionamento.grupos.find(
+      grupo =>
+        grupo.profissionalId ===
+        destinoProfissional.id
+    );
+
+
+  if (!destino) {
+
+    destino = {
+
+      profissionalId:
+        destinoProfissional.id,
+
+      profissional:
+        destinoProfissional.nome,
+
+      tipo:
+        destinoEhApoio
+          ? descricaoTipoApoio(
+              destinoProfissional.id
+            )
+          : destinoProfissional.tipo,
+
+      leitos: [],
+
+      carga: 0,
+
+      atribuicaoExcepcional:
+        destinoEhApoio
+    };
+
+
+    state.dimensionamento.grupos.push(
+      destino
+    );
+  }
 
 
   origem.leitos =
@@ -2858,20 +4201,39 @@ function abrirTransferencia(
     destino.leitos || [];
 
 
-  destino.leitos.push(
-    copiarObjeto(leito)
-  );
+  if (
+    !destino.leitos.some(
+      item =>
+        String(item.id) ===
+        String(leito.id)
+    )
+  ) {
+
+    destino.leitos.push({
+
+      id:
+        String(leito.id),
+
+      peso:
+        calcularIndiceOperacional(
+          leito
+        )
+    });
+  }
 
 
   state.alteracoesEscala.push({
 
-    id: gerarId(),
+    id:
+      gerarId(),
 
     data:
       new Date().toISOString(),
 
     tipo:
-      "transferencia",
+      destinoEhApoio
+        ? "transferencia_para_apoio"
+        : "transferencia",
 
     leito:
       String(leito.id),
@@ -2879,11 +4241,25 @@ function abrirTransferencia(
     origem:
       origem.profissional,
 
+    origemId:
+      origem.profissionalId,
+
     destino:
       destino.profissional,
 
+    destinoId:
+      destino.profissionalId,
+
     motivo:
-      motivo.trim()
+      motivo.trim(),
+
+    temporaria:
+      destinoEhApoio,
+
+    descricao:
+      destinoEhApoio
+        ? `Leito ${leito.id} transferido excepcionalmente para o Apoio ${destino.profissional}.`
+        : `Leito ${leito.id} transferido de ${origem.profissional} para ${destino.profissional}.`
   });
 
 
@@ -2893,6 +4269,9 @@ function abrirTransferencia(
 
   renderizarResultadoDimensionamento();
 
+  renderizarEditorEscalaManual();
+
+
   toast(
     `Leito ${leito.id} transferido para ${destino.profissional}.`
   );
@@ -2900,7 +4279,7 @@ function abrirTransferencia(
 
 
 // ==========================================
-// ESCALA-BASE
+// RESTAURAR ESCALA-BASE
 // ==========================================
 
 function restaurarEscalaBase() {
@@ -2915,9 +4294,10 @@ function restaurarEscalaBase() {
   }
 
 
-  const confirmar = confirm(
-    "Deseja restaurar a escala-base? As alterações manuais deste plantão serão substituídas."
-  );
+  const confirmar =
+    confirm(
+      "Deseja restaurar a escala-base?\n\nAs alterações manuais deste plantão serão substituídas. A escala-base original continuará preservada."
+    );
 
 
   if (!confirmar) {
@@ -2940,12 +4320,21 @@ function restaurarEscalaBase() {
     "manual";
 
 
+  // Apoio temporário pertence somente
+  // ao plantão atual.
+  state.apoioTemporarioId = null;
+
+
   recalcularCargasDimensionamento();
 
   salvarDados(false);
 
   renderizarResultadoDimensionamento();
+
   renderizarEditorEscalaManual();
+
+  renderizarProfissionais();
+
 
   toast(
     "Escala-base restaurada."
@@ -2954,13 +4343,17 @@ function restaurarEscalaBase() {
 
 
 // ==========================================
-// SUGESTÃO POR CARGA
-// NÃO SUBSTITUI A ESCALA MANUAL
+// SUGESTÃO POR CARGA ASSISTENCIAL
+// ==========================================
+// A sugestão nunca substitui automaticamente
+// a decisão do enfermeiro.
+// Apoio não participa da distribuição regular.
 // ==========================================
 
 function gerarSugestaoPorCarga() {
 
   sincronizarEquipeDaTela();
+
 
   const profissionais =
     profissionaisParaEscala();
@@ -2979,13 +4372,18 @@ function gerarSugestaoPorCarga() {
   const grupos =
     profissionais.map(
       profissional => ({
+
         profissionalId:
           profissional.id,
+
         profissional:
           profissional.nome,
+
         tipo:
           profissional.tipo,
+
         leitos: [],
+
         carga: 0
       })
     );
@@ -3010,6 +4408,7 @@ function gerarSugestaoPorCarga() {
     const grupo =
       grupos[0];
 
+
     const peso =
       calcularIndiceOperacional(
         leito
@@ -3017,7 +4416,10 @@ function gerarSugestaoPorCarga() {
 
 
     grupo.leitos.push({
-      id: String(leito.id),
+
+      id:
+        String(leito.id),
+
       peso
     });
 
@@ -3036,18 +4438,23 @@ function gerarSugestaoPorCarga() {
 
 
   const resumo =
-    grupos.map(grupo =>
-      `${grupo.profissional}: ${
-        grupo.leitos
-          .map(item => item.id)
-          .join(", ") || "sem leitos"
-      }`
-    ).join("\n");
+    grupos
+      .map(
+        grupo =>
+          `${grupo.profissional}: ${
+            grupo.leitos
+              .map(item => item.id)
+              .join(", ") ||
+            "sem leitos"
+          }`
+      )
+      .join("\n");
 
 
-  const aplicar = confirm(
-    `SUGESTÃO POR CARGA ASSISTENCIAL\n\n${resumo}\n\nEsta é apenas uma sugestão. Deseja aplicá-la ao plantão atual?`
-  );
+  const aplicar =
+    confirm(
+      `SUGESTÃO POR CARGA ASSISTENCIAL\n\n${resumo}\n\nEsta distribuição é somente uma sugestão operacional e continua totalmente editável.\n\nDeseja aplicá-la ao plantão atual?`
+    );
 
 
   if (!aplicar) {
@@ -3088,7 +4495,8 @@ function gerarSugestaoPorCarga() {
 
   state.alteracoesEscala.push({
 
-    id: gerarId(),
+    id:
+      gerarId(),
 
     data:
       new Date().toISOString(),
@@ -3105,14 +4513,17 @@ function gerarSugestaoPorCarga() {
 
   renderizarResultadoDimensionamento();
 
+
   toast(
     "Sugestão aplicada. Você ainda pode editar qualquer paciente/leito."
   );
 }
 
 
-// Compatibilidade com botão antigo,
-// caso ainda exista em alguma versão do HTML.
+// ==========================================
+// COMPATIBILIDADE COM BOTÃO ANTIGO
+// ==========================================
+
 function gerarDimensionamento() {
 
   if (!state.escalaBase) {
@@ -3126,12 +4537,20 @@ function gerarDimensionamento() {
     return;
   }
 
+
   gerarSugestaoPorCarga();
 }
 
 
 // ==========================================
-// RODÍZIO CONFIGURÁVEL
+// RODÍZIO
+// ==========================================
+// IMPORTANTE:
+// - somente profissionais regulares participam;
+// - Apoio fixo fica fora;
+// - Apoio temporário fica fora;
+// - coberturas temporárias não destroem a base;
+// - a escala gerada continua editável.
 // ==========================================
 
 function abrirConfiguracaoRodizio() {
@@ -3142,7 +4561,7 @@ function abrirConfiguracaoRodizio() {
 
   const escolha =
     prompt(
-      "Quantas posições cada paciente/leito deve avançar no próximo plantão?\n\nExemplo:\n1 = 1→2, 2→3, 3→4\n2 = 1→3, 2→4, 3→5\n\nDigite um número:",
+      "Quantas posições os pacientes/leitos devem avançar no próximo plantão?\n\nExemplo:\n1 = avanço de uma posição\n2 = avanço de duas posições\n\nO profissional de Apoio não participa deste rodízio.\n\nDigite um número:",
       String(atual)
     );
 
@@ -3170,8 +4589,12 @@ function abrirConfiguracaoRodizio() {
 
 
   state.rodizio.ativo = true;
-  state.rodizio.tipo = "sequencial";
-  state.rodizio.passos = passos;
+
+  state.rodizio.tipo =
+    "sequencial";
+
+  state.rodizio.passos =
+    passos;
 
 
   salvarDados(false);
@@ -3182,6 +4605,10 @@ function abrirConfiguracaoRodizio() {
   );
 }
 
+
+// ==========================================
+// PRÓXIMO LEITO DA SEQUÊNCIA
+// ==========================================
 
 function proximoIdLeito(
   id,
@@ -3223,6 +4650,10 @@ function proximoIdLeito(
 }
 
 
+// ==========================================
+// PREPARAR PRÓXIMO PLANTÃO
+// ==========================================
+
 function preDimensionarProximoPlantao() {
 
   if (!state.escalaBase) {
@@ -3250,10 +4681,47 @@ function preDimensionarProximoPlantao() {
       : 1;
 
 
+  // Só os grupos regulares seguem para
+  // o rodízio do próximo plantão.
   const grupos =
     copiarObjeto(
       origem.grupos || []
-    );
+    )
+      .filter(grupo => {
+
+        const profissional =
+          state.profissionais.find(
+            item =>
+              item.id ===
+              grupo.profissionalId
+          );
+
+
+        if (!profissional) {
+          return false;
+        }
+
+
+        if (
+          profissional.tipo === "Apoio"
+        ) {
+          return false;
+        }
+
+
+        if (
+          profissional.id ===
+          state.apoioTemporarioId
+        ) {
+          return false;
+        }
+
+
+        return (
+          profissional.tipo ===
+          "Técnico"
+        );
+      });
 
 
   grupos.forEach(grupo => {
@@ -3266,9 +4734,6 @@ function preDimensionarProximoPlantao() {
       );
 
 
-    // Titular ausente ou de troca
-    // mantém a posição estrutural.
-    // Não alteramos a escala-base.
     grupo.leitos =
       (grupo.leitos || []).map(
         item => {
@@ -3289,7 +4754,10 @@ function preDimensionarProximoPlantao() {
 
 
           return {
-            id: novoId,
+
+            id:
+              novoId,
+
             peso:
               calcularIndiceOperacional(
                 leito || {}
@@ -3323,7 +4791,7 @@ function preDimensionarProximoPlantao() {
         .toLocaleString("pt-BR"),
 
     modo:
-      `Rodízio configurado: avanço de ${passos} posição(ões).`,
+      `Rodízio configurado: avanço de ${passos} posição(ões). Apoio fora do rodízio.`,
 
     grupos
   };
@@ -3332,8 +4800,17 @@ function preDimensionarProximoPlantao() {
   salvarDados(false);
 
   renderizarPreDimensionamento();
+
+
+  toast(
+    "Pré-dimensionamento do próximo plantão preparado."
+  );
 }
 
+
+// ==========================================
+// MOSTRAR PRÉ-DIMENSIONAMENTO
+// ==========================================
 
 function renderizarPreDimensionamento() {
 
@@ -3356,7 +4833,9 @@ function renderizarPreDimensionamento() {
     state.rodizio.proximo;
 
 
-  elemento.classList.remove("hidden");
+  elemento.classList.remove(
+    "hidden"
+  );
 
 
   elemento.innerHTML = `
@@ -3366,6 +4845,12 @@ function renderizarPreDimensionamento() {
       🔄 ${escapeHtml(
         proximo.modo
       )}
+
+      <br><br>
+
+      Esta é uma preparação para o próximo
+      plantão e pode ser editada antes
+      de ser utilizada.
 
     </div>
 
@@ -3377,10 +4862,13 @@ function renderizarPreDimensionamento() {
           <div class="rotation-card">
 
             <h4>
+
               👤 ${escapeHtml(
                 grupo.profissional
               )}
+
             </h4>
+
 
             <div class="beds-line">
 
@@ -3395,6 +4883,7 @@ function renderizarPreDimensionamento() {
 
             </div>
 
+
             <small>
 
               ${
@@ -3402,6 +4891,7 @@ function renderizarPreDimensionamento() {
               } paciente(s)/leito(s)
 
               • Índice:
+
               ${
                 Number(
                   grupo.carga || 0
@@ -3419,6 +4909,7 @@ function renderizarPreDimensionamento() {
 
     <button
       class="primary-btn full"
+      type="button"
       onclick="aplicarPreDimensionamento()"
     >
       ✅ Usar como escala do próximo plantão
@@ -3427,6 +4918,10 @@ function renderizarPreDimensionamento() {
   `;
 }
 
+
+// ==========================================
+// APLICAR PRÉ-DIMENSIONAMENTO
+// ==========================================
 
 function aplicarPreDimensionamento() {
 
@@ -3469,25 +4964,38 @@ function aplicarPreDimensionamento() {
   };
 
 
-  state.rodizio.ultimoPreDimensionamento =
-    copiarObjeto(
-      state.dimensionamento
-    );
+  state.rodizio
+    .ultimoPreDimensionamento =
+      copiarObjeto(
+        state.dimensionamento
+      );
 
 
-  state.rodizio.proximo = null;
+  state.rodizio.proximo =
+    null;
+
+
+  // Apoio temporário do plantão anterior
+  // não é carregado para o novo plantão.
+  state.apoioTemporarioId =
+    null;
 
 
   salvarDados(false);
 
   renderizarResultadoDimensionamento();
 
+  renderizarProfissionais();
+
+
   const resultadoRodizio =
     document.getElementById(
       "resultado-rodizio"
     );
 
+
   if (resultadoRodizio) {
+
     resultadoRodizio.classList.add(
       "hidden"
     );
@@ -3498,373 +5006,1912 @@ function aplicarPreDimensionamento() {
     "Escala do próximo plantão aplicada. Ela continua totalmente editável."
   );
 }
-
-
 // ==========================================
-// TROCAS E COBERTURAS
+// TROCAS, AUSÊNCIAS E COBERTURAS
 // ==========================================
 
 function abrirTrocasCoberturas() {
 
-  const painel =
+  const elemento =
     document.getElementById(
       "painel-trocas-coberturas"
     );
 
-  if (!painel) {
+  if (!elemento) {
+
+    toast(
+      "Área de trocas e coberturas não encontrada."
+    );
+
     return;
   }
 
 
-  painel.classList.remove("hidden");
+  const titulares =
+    state.profissionais.filter(
+      profissional =>
+        profissional.nome?.trim()
+    );
 
 
-  painel.innerHTML = `
+  const apoioFixo =
+    profissionaisApoio()[0] || null;
 
-    <div class="alert-box">
+  const apoioAtual =
+    apoioPresente();
 
-      As alterações abaixo valem para o
-      plantão atual e não substituem
-      permanentemente o titular na escala-base.
+  const apoioTemp =
+    apoioTemporario();
+
+
+  elemento.classList.remove("hidden");
+
+
+  elemento.innerHTML = `
+
+    <div class="card">
+
+      <h3>
+        🔄 Trocas, ausências e coberturas
+      </h3>
+
+      <p class="muted">
+        Registre alterações somente para o plantão atual.
+        A escala-base e a sequência regular permanecem
+        preservadas.
+      </p>
+
+
+      <div class="alert-box">
+
+        Uma cobertura de outro plantão não substitui
+        permanentemente o titular.
+
+        <br><br>
+
+        No próximo plantão, o profissional titular
+        retorna à posição normal da sequência,
+        salvo nova alteração manual.
+
+      </div>
+
+
+      ${
+        titulares.map(
+          profissional => {
+
+            const situacao =
+              profissional.situacao ||
+              "presente";
+
+
+            const cobrindo =
+              profissional.cobrindo ||
+              "";
+
+
+            return `
+
+              <div class="assignment-card">
+
+                <h4>
+                  👤 ${escapeHtml(
+                    profissional.nome
+                  )}
+                </h4>
+
+                <p class="muted">
+                  ${escapeHtml(
+                    profissional.tipo
+                  )}
+                </p>
+
+
+                <label>
+                  Situação neste plantão
+                </label>
+
+                <select
+                  onchange="
+                    alterarSituacaoTroca(
+                      '${profissional.id}',
+                      this.value
+                    )
+                  "
+                >
+
+                  <option
+                    value="presente"
+                    ${
+                      situacao ===
+                        "presente"
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    🟢 Presente
+                  </option>
+
+
+                  <option
+                    value="troca"
+                    ${
+                      situacao ===
+                        "troca"
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    🔄 De troca — ausente neste plantão
+                  </option>
+
+
+                  <option
+                    value="cobertura"
+                    ${
+                      situacao ===
+                        "cobertura"
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    🟡 Cobertura de outro plantão
+                  </option>
+
+
+                  <option
+                    value="ausente"
+                    ${
+                      situacao ===
+                        "ausente"
+                        ? "selected"
+                        : ""
+                    }
+                  >
+                    ⚪ Ausente
+                  </option>
+
+                </select>
+
+
+                ${
+                  situacao === "cobertura"
+
+                    ? `
+
+                      <label>
+                        Está cobrindo quem?
+                      </label>
+
+                      <input
+                        value="${escapeHtml(
+                          cobrindo
+                        )}"
+                        placeholder="Nome do titular"
+                        onchange="
+                          alterarProfissionalCoberto(
+                            '${profissional.id}',
+                            this.value
+                          )
+                        "
+                      >
+
+                    `
+
+                    : ""
+                }
+
+
+                ${
+                  situacao === "troca"
+
+                    ? `
+
+                      <p class="muted">
+                        🔄 ${escapeHtml(
+                          profissional.nome
+                        )} permanece cadastrado como
+                        titular, mas não participa
+                        deste plantão.
+                      </p>
+
+                    `
+
+                    : ""
+                }
+
+
+                ${
+                  situacao === "ausente"
+
+                    ? `
+
+                      <p class="muted">
+                        ⚪ Ausência registrada somente
+                        para o plantão atual.
+                      </p>
+
+                    `
+
+                    : ""
+                }
+
+              </div>
+
+            `;
+          }
+        ).join("")
+      }
+
+
+      <button
+        class="secondary-btn full"
+        type="button"
+        onclick="adicionarCoberturaPlantao()"
+      >
+        ➕ Adicionar profissional de cobertura
+      </button>
 
     </div>
 
 
-    ${
-      state.profissionais.map(
-        (profissional, indice) => `
+    <div class="card">
 
-          <div class="assignment-card">
+      <h3>
+        🩺 Apoio do plantão
+      </h3>
 
-            <h4>
-              👤 ${escapeHtml(
-                profissional.nome ||
-                "Profissional sem identificação"
-              )}
-            </h4>
 
+      ${
+        apoioAtual
+
+          ? `
+
+            <div class="assignment-card">
+
+              <strong>
+                ${escapeHtml(
+                  apoioAtual.nome
+                )}
+              </strong>
+
+              <p>
+                🩺 Apoio regular deste plantão.
+              </p>
+
+              <p class="muted">
+                Não participa do rodízio regular
+                de pacientes/leitos.
+              </p>
+
+            </div>
+
+          `
+
+          : apoioFixo
+
+          ? `
+
+            <div class="alert-box">
+
+              ⚠️ O profissional definido como Apoio,
+
+              <strong>
+                ${escapeHtml(
+                  apoioFixo.nome
+                )}
+              </strong>,
+
+              não está disponível neste plantão.
+
+              <br><br>
+
+              Se necessário, escolha um técnico
+              para assumir temporariamente
+              a função de Apoio.
+
+            </div>
+
+          `
+
+          : `
+
+            <p class="muted">
+              Nenhum Apoio fixo cadastrado.
+            </p>
+
+          `
+      }
+
+
+      ${
+        apoioTemp
+
+          ? `
+
+            <div class="assignment-card">
+
+              <strong>
+                ${escapeHtml(
+                  apoioTemp.nome
+                )}
+              </strong>
+
+              <p>
+                🩺 Apoio temporário
+              </p>
+
+              <p class="muted">
+                Esta função vale somente para
+                o plantão atual e não modifica
+                a escala-base.
+              </p>
+
+
+              <button
+                class="secondary-btn full"
+                type="button"
+                onclick="removerApoioTemporario()"
+              >
+                ↩️ Remover Apoio temporário
+              </button>
+
+            </div>
+
+          `
+
+          : !apoioAtual
+
+          ? `
 
             <label>
-              Situação neste plantão
+              Técnico para Apoio temporário
             </label>
 
 
             <select
-              onchange="
-                atualizarSituacaoProfissional(
-                  ${indice},
-                  this.value
-                );
-                abrirTrocasCoberturas();
-              "
+              id="troca-apoio-temporario"
             >
 
-              <option
-                value="presente"
-                ${
-                  profissional.situacao ===
-                  "presente"
-                    ? "selected"
-                    : ""
-                }
-              >
-                🟢 Titular presente
+              <option value="">
+                Selecione
               </option>
 
-              <option
-                value="troca"
-                ${
-                  profissional.situacao ===
-                  "troca"
-                    ? "selected"
-                    : ""
-                }
-              >
-                🔄 De troca — ausente neste plantão
-              </option>
+              ${
+                state.profissionais
+                  .filter(
+                    profissional =>
+                      profissional.nome?.trim() &&
+                      profissional.tipo ===
+                        "Técnico" &&
+                      (
+                        profissional.situacao ===
+                          "presente" ||
+                        profissional.situacao ===
+                          "cobertura"
+                      )
+                  )
+                  .map(
+                    profissional => `
 
-              <option
-                value="cobertura"
-                ${
-                  profissional.situacao ===
-                  "cobertura"
-                    ? "selected"
-                    : ""
-                }
-              >
-                🟡 Cobertura de outro plantão
-              </option>
+                      <option
+                        value="${profissional.id}"
+                      >
+                        ${escapeHtml(
+                          profissional.nome
+                        )}
+                      </option>
 
-              <option
-                value="ausente"
-                ${
-                  profissional.situacao ===
-                  "ausente"
-                    ? "selected"
-                    : ""
-                }
-              >
-                ⚪ Ausente
-              </option>
+                    `
+                  )
+                  .join("")
+              }
 
             </select>
 
 
-            ${
-              profissional.situacao ===
-              "cobertura"
-                ? `
+            <button
+              class="secondary-btn full"
+              type="button"
+              onclick="definirApoioTemporarioTrocas()"
+            >
+              🩺 Definir Apoio temporário
+            </button>
 
-                  <label>
-                    Quem está cobrindo?
-                    / Observação
-                  </label>
+          `
 
-                  <input
-                    value="${escapeHtml(
-                      profissional.cobrindo || ""
-                    )}"
-                    placeholder="Ex.: cobrindo João / plantão noturno"
-                    onchange="
-                      state.profissionais[
-                        ${indice}
-                      ].cobrindo =
-                        this.value.trim();
+          : ""
+      }
 
-                      salvarDados(false);
-                    "
-                  >
-
-                `
-                : ""
-            }
-
-          </div>
-
-        `
-      ).join("")
-    }
-
-
-    <button
-      class="primary-btn full"
-      onclick="
-        salvarDados(false);
-        renderizarProfissionais();
-        renderizarResultadoDimensionamento();
-        toast('Trocas e coberturas atualizadas.');
-      "
-    >
-      💾 Salvar alterações do plantão
-    </button>
+    </div>
 
   `;
+
+
+  elemento.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
 
 
 // ==========================================
-// ENCERRAR PLANTÃO / PREPARAR PRÓXIMO
+// ALTERAR SITUAÇÃO DO PROFISSIONAL
 // ==========================================
 
-function encerrarPlantaoEPrepararProximo() {
+function alterarSituacaoTroca(
+  profissionalId,
+  situacao
+) {
 
-  salvarPlantaoHistorico();
-
-
-  if (!state.dimensionamento) {
-
-    toast(
-      "Monte a escala manual antes de preparar o próximo plantão."
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id ===
+        profissionalId
     );
 
-    showTab("dimensionamento");
 
+  if (!profissional) {
     return;
   }
 
 
-  state.rodizio.ultimoPreDimensionamento =
-    copiarObjeto(
-      state.dimensionamento
-    );
+  const situacaoAnterior =
+    profissional.situacao;
 
 
-  state.rodizio.proximo = null;
+  profissional.situacao =
+    situacao;
 
 
-  // Situações temporárias não devem
-  // alterar permanentemente a equipe.
-  state.profissionais.forEach(
-    profissional => {
+  profissional.ativo =
+    situacao === "presente" ||
+    situacao === "cobertura";
 
-      if (
-        profissional.situacao ===
-        "troca" ||
-        profissional.situacao ===
-        "ausente"
-      ) {
 
-        profissional.situacao =
-          "presente";
+  if (situacao !== "cobertura") {
+    profissional.cobrindo = "";
+  }
 
-        profissional.ativo = true;
-      }
-    }
-  );
+
+  if (
+    state.apoioTemporarioId ===
+      profissional.id &&
+    !profissional.ativo
+  ) {
+
+    state.apoioTemporarioId =
+      null;
+  }
+
+
+  state.alteracoesEscala.push({
+
+    id:
+      gerarId(),
+
+    data:
+      new Date().toISOString(),
+
+    tipo:
+      "situacao_profissional",
+
+    profissionalId:
+      profissional.id,
+
+    profissional:
+      profissional.nome,
+
+    situacaoAnterior,
+
+    situacaoNova:
+      situacao,
+
+    descricao:
+      `${profissional.nome}: ${situacaoAnterior} → ${situacao}.`
+  });
 
 
   salvarDados(false);
 
-  showTab("dimensionamento");
+  renderizarProfissionais();
 
-  preDimensionarProximoPlantao();
+  renderizarResultadoDimensionamento();
+
+  abrirTrocasCoberturas();
+
 
   toast(
-    "Plantão salvo e próximo plantão preparado."
+    `Situação de ${profissional.nome} atualizada.`
   );
 }
 
 
 // ==========================================
-// PASSAGEM DE PLANTÃO
+// REGISTRAR QUEM ESTÁ SENDO COBERTO
 // ==========================================
 
-function renderizarPreviaPlantao() {
+function alterarProfissionalCoberto(
+  profissionalId,
+  nomeTitular
+) {
 
-  const acontecimentos =
-    document.getElementById(
-      "plantao-acontecimentos"
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id ===
+        profissionalId
     );
 
-  const passagem =
-    document.getElementById(
-      "plantao-passagem"
-    );
 
-
-  if (acontecimentos) {
-    acontecimentos.value =
-      state.plantao.acontecimentos || "";
-  }
-
-  if (passagem) {
-    passagem.value =
-      state.plantao.passagem || "";
-  }
-
-
-  const elemento =
-    document.getElementById(
-      "previa-plantao"
-    );
-
-  if (!elemento) {
+  if (!profissional) {
     return;
   }
 
 
-  const itens =
-    state.leitos.filter(leito =>
-      [
-        leito.pendenciasExames,
-        leito.acontecimentos,
-        leito.condutas,
-        leito.passagem
-      ].some(item =>
-        item?.trim()
-      )
-    );
+  profissional.cobrindo =
+    nomeTitular.trim();
 
 
-  elemento.innerHTML =
-    itens.length
-
-      ? itens.map(leito => `
-
-          <div class="handover-item">
-
-            <h4>
-
-              🛏️ LEITO
-              ${escapeHtml(leito.id)}
-
-              —
-              ${
-                GRAVIDADES[
-                  leito.gravidade
-                ]
-              }
-
-            </h4>
+  salvarDados(false);
 
 
-            ${
-              leito.pendenciasExames
-                ? `
-                  <p>
-                    <strong>Exames:</strong>
-                    ${escapeHtml(
-                      leito.pendenciasExames
-                    )}
-                  </p>
-                `
-                : ""
-            }
-
-
-            ${
-              leito.acontecimentos
-                ? `
-                  <p>
-                    <strong>Acontecimentos:</strong>
-                    ${escapeHtml(
-                      leito.acontecimentos
-                    )}
-                  </p>
-                `
-                : ""
-            }
-
-
-            ${
-              leito.condutas
-                ? `
-                  <p>
-                    <strong>Pendências:</strong>
-                    ${escapeHtml(
-                      leito.condutas
-                    )}
-                  </p>
-                `
-                : ""
-            }
-
-
-            ${
-              leito.passagem
-                ? `
-                  <p>
-                    <strong>Próximo turno:</strong>
-                    ${escapeHtml(
-                      leito.passagem
-                    )}
-                  </p>
-                `
-                : ""
-            }
-
-          </div>
-
-        `).join("")
-
-      : `
-          <p class="muted">
-            Nenhuma pendência registrada nos leitos.
-          </p>
-        `;
+  toast(
+    "Cobertura atualizada."
+  );
 }
 
 
+// ==========================================
+// ADICIONAR COBERTURA
+// ==========================================
+
+function adicionarCoberturaPlantao() {
+
+  const nome =
+    prompt(
+      "Nome ou identificação do profissional que veio de outro plantão para realizar a cobertura:"
+    );
+
+
+  if (!nome?.trim()) {
+    return;
+  }
+
+
+  const titular =
+    prompt(
+      "Quem este profissional está cobrindo?\n\nOpcional — deixe em branco se não houver titular específico."
+    ) || "";
+
+
+  const profissional = {
+
+    id:
+      gerarId(),
+
+    nome:
+      nome.trim(),
+
+    tipo:
+      "Técnico",
+
+    ativo:
+      true,
+
+    situacao:
+      "cobertura",
+
+    cobrindo:
+      titular.trim()
+  };
+
+
+  state.profissionais.push(
+    profissional
+  );
+
+
+  state.alteracoesEscala.push({
+
+    id:
+      gerarId(),
+
+    data:
+      new Date().toISOString(),
+
+    tipo:
+      "cobertura_adicionada",
+
+    profissionalId:
+      profissional.id,
+
+    profissional:
+      profissional.nome,
+
+    cobrindo:
+      profissional.cobrindo,
+
+    descricao:
+      `${profissional.nome} adicionado como cobertura${
+        profissional.cobrindo
+          ? ` de ${profissional.cobrindo}`
+          : ""
+      }.`
+  });
+
+
+  salvarDados(false);
+
+  renderizarProfissionais();
+
+  abrirTrocasCoberturas();
+
+
+  toast(
+    `${profissional.nome} adicionado como cobertura deste plantão.`
+  );
+}
+
+
+// ==========================================
+// DEFINIR APOIO TEMPORÁRIO PELA ÁREA DE TROCAS
+// ==========================================
+
+function definirApoioTemporarioTrocas() {
+
+  const profissionalId =
+    document.getElementById(
+      "troca-apoio-temporario"
+    )?.value;
+
+
+  if (!profissionalId) {
+
+    toast(
+      "Selecione o profissional que assumirá o Apoio."
+    );
+
+    return;
+  }
+
+
+  const profissional =
+    state.profissionais.find(
+      item =>
+        item.id ===
+        profissionalId
+    );
+
+
+  if (!profissional) {
+    return;
+  }
+
+
+  state.apoioTemporarioId =
+    profissional.id;
+
+
+  state.alteracoesEscala.push({
+
+    id:
+      gerarId(),
+
+    data:
+      new Date().toISOString(),
+
+    tipo:
+      "apoio_temporario",
+
+    profissionalId:
+      profissional.id,
+
+    profissional:
+      profissional.nome,
+
+    descricao:
+      `${profissional.nome} assumiu temporariamente a função de Apoio neste plantão.`
+  });
+
+
+  salvarDados(false);
+
+  renderizarProfissionais();
+
+  abrirTrocasCoberturas();
+
+  renderizarResultadoDimensionamento();
+
+
+  toast(
+    `${profissional.nome} definido como Apoio temporário.`
+  );
+}
+
+
+// ==========================================
+// PDF DA ESCALA
+// ==========================================
+
+function gerarPDFEscala() {
+
+  if (!state.dimensionamento?.grupos?.length) {
+
+    toast(
+      "Monte e salve a escala antes de gerar o PDF."
+    );
+
+    return;
+  }
+
+
+  if (
+    !window.jspdf ||
+    !window.jspdf.jsPDF
+  ) {
+
+    toast(
+      "O gerador de PDF não foi carregado."
+    );
+
+    return;
+  }
+
+
+  lerConfiguracoesDaTela();
+
+  recalcularCargasDimensionamento();
+
+
+  const { jsPDF } =
+    window.jspdf;
+
+
+  const doc =
+    new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+
+  const larguraPagina =
+    doc.internal.pageSize.getWidth();
+
+
+  const alturaPagina =
+    doc.internal.pageSize.getHeight();
+
+
+  const margem =
+    14;
+
+
+  const larguraUtil =
+    larguraPagina -
+    margem * 2;
+
+
+  let y =
+    16;
+
+
+  function verificarPagina(
+    alturaNecessaria = 20
+  ) {
+
+    if (
+      y + alturaNecessaria >
+      alturaPagina - 18
+    ) {
+
+      adicionarRodape();
+
+      doc.addPage();
+
+      y = 16;
+    }
+  }
+
+
+  function adicionarRodape() {
+
+    doc.setFont(
+      "helvetica",
+      "normal"
+    );
+
+    doc.setFontSize(8);
+
+    doc.text(
+      "Cadê a Escala? | Dia de Treinamento",
+      margem,
+      alturaPagina - 8
+    );
+
+
+    doc.text(
+      `Página ${doc.internal.getNumberOfPages()}`,
+      larguraPagina - margem,
+      alturaPagina - 8,
+      {
+        align: "right"
+      }
+    );
+  }
+
+
+  function textoQuebrado(
+    texto,
+    x,
+    largura,
+    tamanho = 10,
+    estilo = "normal"
+  ) {
+
+    doc.setFont(
+      "helvetica",
+      estilo
+    );
+
+    doc.setFontSize(
+      tamanho
+    );
+
+
+    const linhas =
+      doc.splitTextToSize(
+        String(texto || ""),
+        largura
+      );
+
+
+    doc.text(
+      linhas,
+      x,
+      y
+    );
+
+
+    y +=
+      linhas.length *
+      (
+        tamanho <= 9
+          ? 4
+          : 5
+      );
+
+
+    return linhas;
+  }
+
+
+  // ========================================
+  // CABEÇALHO
+  // ========================================
+
+  doc.setFont(
+    "helvetica",
+    "bold"
+  );
+
+  doc.setFontSize(
+    20
+  );
+
+
+  doc.text(
+    "CADE A ESCALA?",
+    margem,
+    y
+  );
+
+
+  y += 7;
+
+
+  doc.setFont(
+    "helvetica",
+    "normal"
+  );
+
+  doc.setFontSize(
+    10
+  );
+
+
+  doc.text(
+    "Dia de Treinamento | Escala Assistencial do Plantao",
+    margem,
+    y
+  );
+
+
+  y += 9;
+
+
+  doc.line(
+    margem,
+    y,
+    larguraPagina - margem,
+    y
+  );
+
+
+  y += 8;
+
+
+  // ========================================
+  // DADOS DO PLANTÃO
+  // ========================================
+
+  doc.setFont(
+    "helvetica",
+    "bold"
+  );
+
+  doc.setFontSize(
+    11
+  );
+
+
+  doc.text(
+    "DADOS DO PLANTAO",
+    margem,
+    y
+  );
+
+
+  y += 6;
+
+
+  textoQuebrado(
+    `Instituicao: ${
+      state.config.hospital ||
+      "Nao informado"
+    }`,
+    margem,
+    larguraUtil,
+    10
+  );
+
+
+  textoQuebrado(
+    `Setor: ${
+      state.config.setor ||
+      "Nao informado"
+    }`,
+    margem,
+    larguraUtil,
+    10
+  );
+
+
+  textoQuebrado(
+    `Data: ${
+      formatarData(
+        state.config.data
+      )
+    } | Turno: ${
+      state.config.turno ||
+      "Nao informado"
+    }`,
+    margem,
+    larguraUtil,
+    10
+  );
+
+
+  textoQuebrado(
+    `Enfermeiro: ${
+      state.config.enfermeiro ||
+      "Nao informado"
+    }${
+      state.config.coren
+        ? ` | COREN: ${state.config.coren}`
+        : ""
+    }`,
+    margem,
+    larguraUtil,
+    10
+  );
+
+
+  y += 4;
+
+
+  // ========================================
+  // DISTRIBUIÇÃO
+  // ========================================
+
+  doc.setFont(
+    "helvetica",
+    "bold"
+  );
+
+  doc.setFontSize(
+    12
+  );
+
+
+  doc.text(
+    "DISTRIBUICAO ASSISTENCIAL",
+    margem,
+    y
+  );
+
+
+  y += 7;
+
+
+  state.dimensionamento.grupos
+    .forEach(
+      (grupo, indice) => {
+
+        verificarPagina(30);
+
+
+        const profissional =
+          state.profissionais.find(
+            item =>
+              item.id ===
+              grupo.profissionalId
+          );
+
+
+        const apoio =
+          profissionalEhApoio(
+            grupo.profissionalId
+          );
+
+
+        const tipoApoio =
+          descricaoTipoApoio(
+            grupo.profissionalId
+          );
+
+
+        const situacao =
+          profissional?.situacao ||
+          "presente";
+
+
+        const situacaoTexto = {
+
+          presente:
+            "Presente",
+
+          troca:
+            "De troca - ausente neste plantao",
+
+          cobertura:
+            "Cobertura de outro plantao",
+
+          ausente:
+            "Ausente"
+
+        }[situacao] ||
+        situacao;
+
+
+        doc.setFont(
+          "helvetica",
+          "bold"
+        );
+
+        doc.setFontSize(
+          11
+        );
+
+
+        doc.text(
+          `${indice + 1}. ${
+            grupo.profissional ||
+            "Profissional"
+          }${
+            apoio
+              ? ` - ${tipoApoio}`
+              : ""
+          }`,
+          margem,
+          y
+        );
+
+
+        y += 5;
+
+
+        doc.setFont(
+          "helvetica",
+          "normal"
+        );
+
+        doc.setFontSize(
+          9
+        );
+
+
+        textoQuebrado(
+          `Situacao: ${situacaoTexto}${
+            profissional?.cobrindo
+              ? ` | Cobrindo: ${profissional.cobrindo}`
+              : ""
+          }`,
+          margem + 4,
+          larguraUtil - 4,
+          9
+        );
+
+
+        textoQuebrado(
+          `Pacientes/Leitos: ${
+            grupo.leitos?.length
+              ? grupo.leitos
+                  .map(item => item.id)
+                  .join(", ")
+              : "Nenhum"
+          }`,
+          margem + 4,
+          larguraUtil - 4,
+          9
+        );
+
+
+        textoQuebrado(
+          `Quantidade: ${
+            grupo.leitos?.length || 0
+          } | Indice operacional: ${
+            Number(
+              grupo.carga || 0
+            ).toFixed(1)
+          }`,
+          margem + 4,
+          larguraUtil - 4,
+          9
+        );
+
+
+        if (apoio) {
+
+          textoQuebrado(
+            grupo.leitos?.length
+              ? "Observacao: atribuicao excepcional ao Apoio somente neste plantao."
+              : "Observacao: profissional de Apoio fora do rodizio regular.",
+            margem + 4,
+            larguraUtil - 4,
+            8
+          );
+        }
+
+
+        y += 4;
+      }
+    );
+
+
+  // ========================================
+  // ALTERAÇÕES DO PLANTÃO
+  // ========================================
+
+  const alteracoes =
+    state.alteracoesEscala || [];
+
+
+  if (alteracoes.length) {
+
+    verificarPagina(25);
+
+
+    doc.setFont(
+      "helvetica",
+      "bold"
+    );
+
+    doc.setFontSize(
+      11
+    );
+
+
+    doc.text(
+      "ALTERACOES REGISTRADAS NO PLANTAO",
+      margem,
+      y
+    );
+
+
+    y += 6;
+
+
+    alteracoes
+      .slice(-10)
+      .forEach(alteracao => {
+
+        verificarPagina(12);
+
+
+        textoQuebrado(
+          `- ${
+            alteracao.descricao ||
+            alteracao.tipo ||
+            "Alteracao registrada"
+          }`,
+          margem + 2,
+          larguraUtil - 2,
+          8
+        );
+      });
+
+
+    y += 3;
+  }
+
+
+  // ========================================
+  // AVISO
+  // ========================================
+
+  verificarPagina(25);
+
+
+  doc.setFont(
+    "helvetica",
+    "bold"
+  );
+
+  doc.setFontSize(
+    9
+  );
+
+
+  doc.text(
+    "OBSERVACAO",
+    margem,
+    y
+  );
+
+
+  y += 5;
+
+
+  textoQuebrado(
+    "Documento destinado a organizacao operacional da escala assistencial. A distribuicao deve ser revisada pelo profissional responsavel conforme as condicoes reais da unidade, protocolos institucionais e normas aplicaveis.",
+    margem,
+    larguraUtil,
+    8
+  );
+
+
+  adicionarRodape();
+
+
+  const setor =
+    nomeSeguroArquivo(
+      state.config.setor ||
+      "setor"
+    );
+
+
+  const data =
+    state.config.data ||
+    new Date()
+      .toISOString()
+      .slice(0, 10);
+
+
+  doc.save(
+    `Escala_${setor}_${data}.pdf`
+  );
+
+
+  toast(
+    "PDF da escala gerado com sucesso."
+  );
+}
+
+
+// ==========================================
+// COMPATIBILIDADE COM NOMES DE FUNÇÕES
+// ==========================================
+
+function gerarEscalaPDF() {
+  gerarPDFEscala();
+}
+
+
+// ==========================================
+// FORMATAÇÃO DE DATA
+// ==========================================
+
+function formatarData(data) {
+
+  if (!data) {
+    return "Não informada";
+  }
+
+
+  const partes =
+    String(data).split("-");
+
+
+  if (partes.length !== 3) {
+    return String(data);
+  }
+
+
+  return (
+    `${partes[2]}/` +
+    `${partes[1]}/` +
+    `${partes[0]}`
+  );
+}
+
+
+// ==========================================
+// NOME SEGURO PARA ARQUIVOS
+// ==========================================
+
+function nomeSeguroArquivo(valor) {
+
+  return String(
+    valor || "arquivo"
+  )
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      ""
+    )
+    .replace(
+      /[^a-zA-Z0-9_-]+/g,
+      "_"
+    )
+    .replace(
+      /^_+|_+$/g,
+      ""
+    )
+    .slice(0, 60) ||
+    "arquivo";
+}
+// ==========================================
+// BAIXAR ARQUIVO
+// ==========================================
+
+function baixarArquivo(
+  conteudo,
+  nome,
+  tipo = "application/json"
+) {
+
+  const blob =
+    new Blob(
+      [conteudo],
+      { type: tipo }
+    );
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement("a");
+
+  link.href = url;
+  link.download = nome;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(
+    () => URL.revokeObjectURL(url),
+    1000
+  );
+}
+
+
+// ==========================================
+// EXPORTAR PASSAGEM PARA O PRÓXIMO ENFERMEIRO
+// ==========================================
+
+function exportarPassagemPlantao() {
+
+  salvarDados(false);
+
+
+  const payload = {
+
+    app:
+      "Cadê a Escala?",
+
+    marca:
+      "Dia de Treinamento",
+
+    tipo:
+      "passagem_plantao",
+
+    versao:
+      "1.0",
+
+    exportadoEm:
+      new Date().toISOString(),
+
+    avisoPrivacidade:
+      "Arquivo destinado à passagem assistencial sem identificação nominal do paciente.",
+
+    config: {
+
+      hospital:
+        state.config.hospital || "",
+
+      setor:
+        state.config.setor || "",
+
+      data:
+        state.config.data || "",
+
+      turno:
+        state.config.turno || "",
+
+      qtdLeitos:
+        state.config.qtdLeitos,
+
+      tipoLeito:
+        state.config.tipoLeito,
+
+      identificadores:
+        state.config.identificadores || ""
+    },
+
+
+    plantao: {
+
+      acontecimentos:
+        state.plantao.acontecimentos || "",
+
+      passagem:
+        state.plantao.passagem || ""
+    },
+
+
+    leitos:
+      state.leitos.map(
+        leito => ({
+
+          id:
+            String(leito.id),
+
+          diagnostico:
+            leito.diagnostico || "",
+
+          gravidade:
+            Number(leito.gravidade) || 0,
+
+          respiracao:
+            leito.respiracao || "AA",
+
+          dispositivos:
+            copiarObjeto(
+              leito.dispositivos || []
+            ),
+
+          precaucoes:
+            copiarObjeto(
+              leito.precaucoes || []
+            ),
+
+          pendenciasExames:
+            leito.pendenciasExames || "",
+
+          acontecimentos:
+            leito.acontecimentos || "",
+
+          condutas:
+            leito.condutas || "",
+
+          passagem:
+            leito.passagem || "",
+
+          indiceOperacional:
+            calcularIndiceOperacional(
+              leito
+            )
+        }))
+  };
+
+
+  const setor =
+    nomeSeguroArquivo(
+      state.config.setor ||
+      "plantao"
+    );
+
+
+  const data =
+    state.config.data ||
+    new Date()
+      .toISOString()
+      .slice(0, 10);
+
+
+  baixarArquivo(
+
+    JSON.stringify(
+      payload,
+      null,
+      2
+    ),
+
+    `passagem_${setor}_${data}.cde`,
+
+    "application/json"
+  );
+
+
+  toast(
+    "Arquivo de passagem gerado. Encaminhe-o ao próximo enfermeiro."
+  );
+}
+
+
+// ==========================================
+// SELECIONAR ARQUIVO DE PASSAGEM
+// ==========================================
+
+function selecionarArquivoPassagem() {
+
+  let input =
+    document.getElementById(
+      "arquivo-passagem-cde"
+    );
+
+
+  if (!input) {
+
+    input =
+      document.createElement(
+        "input"
+      );
+
+    input.type =
+      "file";
+
+    input.id =
+      "arquivo-passagem-cde";
+
+    input.accept =
+      ".cde,application/json";
+
+    input.style.display =
+      "none";
+
+
+    input.addEventListener(
+      "change",
+      importarPassagemPlantao
+    );
+
+
+    document.body.appendChild(
+      input
+    );
+  }
+
+
+  input.value = "";
+
+  input.click();
+}
+
+
+// ==========================================
+// IMPORTAR PLANTÃO ANTERIOR
+// ==========================================
+
+function importarPassagemPlantao(
+  event
+) {
+
+  const arquivo =
+    event.target.files?.[0];
+
+
+  if (!arquivo) {
+    return;
+  }
+
+
+  const leitor =
+    new FileReader();
+
+
+  leitor.onload = () => {
+
+    try {
+
+      const payload =
+        JSON.parse(
+          String(
+            leitor.result || ""
+          )
+        );
+
+
+      // ====================================
+      // VALIDAR ARQUIVO
+      // ====================================
+
+      if (
+        payload.tipo !==
+          "passagem_plantao" ||
+        !Array.isArray(
+          payload.leitos
+        )
+      ) {
+
+        throw new Error(
+          "Arquivo de passagem inválido."
+        );
+      }
+
+
+      const confirmar =
+        confirm(
+          `IMPORTAR PLANTÃO ANTERIOR\n\nForam encontrados ${payload.leitos.length} leito(s).\n\nAs avaliações serão marcadas como IMPORTADAS e deverão ser confirmadas ou reavaliadas pelo enfermeiro atual.\n\nDeseja continuar?`
+        );
+
+
+      if (!confirmar) {
+        return;
+      }
+
+
+      const configuracaoAnterior =
+        payload.config || {};
+
+
+      // ====================================
+      // HOSPITAL E SETOR
+      // ====================================
+      // Só aproveita esses dados se ainda
+      // não estiverem preenchidos no app.
+      // ====================================
+
+      state.config.hospital =
+        state.config.hospital ||
+        configuracaoAnterior.hospital ||
+        "";
+
+
+      state.config.setor =
+        state.config.setor ||
+        configuracaoAnterior.setor ||
+        "";
+
+
+      // ====================================
+      // IDENTIFICAÇÃO DOS LEITOS
+      // ====================================
+
+      state.config.qtdLeitos =
+        payload.leitos.length ||
+        state.config.qtdLeitos;
+
+
+      state.config.tipoLeito =
+        "personalizado";
+
+
+      state.config.identificadores =
+        payload.leitos
+          .map(
+            leito =>
+              String(leito.id)
+          )
+          .join(", ");
+
+
+      // ====================================
+      // IMPORTAR AVALIAÇÕES
+      // ====================================
+
+      state.leitos =
+        payload.leitos.map(
+          registro => ({
+
+            ...criarLeito(
+              String(registro.id)
+            ),
+
+
+            id:
+              String(registro.id),
+
+
+            diagnostico:
+              registro.diagnostico ||
+              "",
+
+
+            gravidade:
+              Math.max(
+                0,
+                Math.min(
+                  5,
+                  Number(
+                    registro.gravidade
+                  ) || 0
+                )
+              ),
+
+
+            respiracao:
+              RESPIRACOES.includes(
+                registro.respiracao
+              )
+
+                ? registro.respiracao
+
+                : "AA",
+
+
+            dispositivos:
+              Array.isArray(
+                registro.dispositivos
+              )
+
+                ? registro.dispositivos.filter(
+                    item =>
+                      DISPOSITIVOS.includes(
+                        item
+                      )
+                  )
+
+                : [],
+
+
+            precaucoes:
+              Array.isArray(
+                registro.precaucoes
+              ) &&
+              registro.precaucoes.length
+
+                ? registro.precaucoes.filter(
+                    item =>
+                      PRECAUCOES.includes(
+                        item
+                      )
+                  )
+
+                : ["Padrão"],
+
+
+            pendenciasExames:
+              registro.pendenciasExames ||
+              "",
+
+
+            acontecimentos:
+              registro.acontecimentos ||
+              "",
+
+
+            condutas:
+              registro.condutas ||
+              "",
+
+
+            passagem:
+              registro.passagem ||
+              "",
+
+
+            // =================================
+            // MUITO IMPORTANTE:
+            // A avaliação veio de outro plantão.
+            // O novo enfermeiro precisa confirmar
+            // ou reavaliar.
+            // =================================
+
+            avaliacaoImportada:
+              true,
+
+
+            importadoEm:
+              new Date()
+                .toISOString(),
+
+
+            confirmadoNoPlantaoAtual:
+              false
+          })
+        );
+
+
+      // ====================================
+      // PASSAGEM GERAL DO PLANTÃO
+      // ====================================
+
+      state.plantao.acontecimentos =
+        payload.plantao
+          ?.acontecimentos ||
+        "";
+
+
+      state.plantao.passagem =
+        payload.plantao
+          ?.passagem ||
+        "";
+
+
+      // ====================================
+      // NÃO IMPORTAR A ESCALA DA EQUIPE
+      // ====================================
+      //
+      // O próximo enfermeiro recebe as
+      // informações assistenciais dos leitos,
+      // mas monta a escala com a própria equipe.
+      //
+      // ====================================
+
+      state.dimensionamento =
+        null;
+
+
+      state.rodizio.proximo =
+        null;
+
+
+      // ====================================
+      // SALVAR
+      // ====================================
+
+      salvarDados(false);
+
+
+      preencherConfiguracoes();
+
+      atualizarDashboard();
+
+      renderizarLeitos();
+
+      renderizarPreviaPlantao();
+
+      renderizarResultadoDimensionamento();
+
+
+      // Depois da importação,
+      // abre diretamente os leitos.
+
+      showTab(
+        "leitos"
+      );
+
+
+      toast(
+        "Plantão anterior importado. Confirme ou reavalie cada leito."
+      );
+    }
+
+
+    catch (erro) {
+
+      console.error(
+        "Erro ao importar passagem:",
+        erro
+      );
+
+
+      toast(
+        "Não foi possível importar este arquivo de passagem."
+      );
+    }
+  };
+
+
+  leitor.readAsText(
+    arquivo
+  );
+}
 // ==========================================
 // HISTÓRICO
 // ==========================================
@@ -3891,6 +6938,16 @@ function salvarPlantaoHistorico() {
     dimensionamento:
       copiarObjeto(
         state.dimensionamento
+      ),
+
+    leitos:
+      copiarObjeto(
+        state.leitos
+      ),
+
+    plantao:
+      copiarObjeto(
+        state.plantao
       ),
 
     resumo: {
@@ -4196,10 +7253,8 @@ function atualizarDashboard() {
       ).join("");
   }
 }
-
-
 // ==========================================
-// PDF
+// RELATÓRIO FINAL DO PLANTÃO — PDF
 // ==========================================
 
 async function gerarPDF() {
@@ -4262,11 +7317,13 @@ async function gerarPDF() {
             y = 15;
           }
 
+
           doc.text(
             linha,
             15,
             y
           );
+
 
           y +=
             tamanho * 0.55 + 2;
@@ -4274,11 +7331,16 @@ async function gerarPDF() {
     };
 
 
+  // ========================================
+  // CABEÇALHO
+  // ========================================
+
   doc.setFillColor(
     17,
     24,
     39
   );
+
 
   doc.rect(
     0,
@@ -4295,20 +7357,25 @@ async function gerarPDF() {
     255
   );
 
+
   doc.setFontSize(18);
+
 
   doc.setFont(
     "helvetica",
     "bold"
   );
 
+
   doc.text(
-    "ESCALA ASSISTENCIAL",
+    "CADE A ESCALA?",
     15,
     14
   );
 
+
   doc.setFontSize(10);
+
 
   doc.text(
     "Dia de Treinamento | Relatorio Final do Plantao",
@@ -4323,8 +7390,13 @@ async function gerarPDF() {
     45
   );
 
+
   y = 40;
 
+
+  // ========================================
+  // IDENTIFICAÇÃO DO PLANTÃO
+  // ========================================
 
   adicionar(
     `Instituicao: ${
@@ -4367,6 +7439,10 @@ async function gerarPDF() {
   y += 3;
 
 
+  // ========================================
+  // AVALIAÇÃO DOS LEITOS
+  // ========================================
+
   adicionar(
     "AVALIACAO DOS LEITOS",
     14,
@@ -4377,87 +7453,115 @@ async function gerarPDF() {
   y += 2;
 
 
-  state.leitos.forEach(leito => {
+  state.leitos.forEach(
+    leito => {
 
-    adicionar(
-      `LEITO ${leito.id} - Gravidade: ${
-        GRAVIDADES[
-          leito.gravidade
-        ]
-      } - Indice operacional: ${
-        calcularIndiceOperacional(
-          leito
-        )
-      }`,
-      11,
-      true
-    );
-
-
-    if (leito.diagnostico) {
       adicionar(
-        `Diagnostico/descricao: ${leito.diagnostico}`
+        `LEITO ${leito.id} - Gravidade: ${
+          GRAVIDADES[
+            leito.gravidade
+          ]
+        } - Indice operacional: ${
+          calcularIndiceOperacional(
+            leito
+          )
+        }`,
+        11,
+        true
       );
-    }
 
 
-    adicionar(
-      `Respiracao: ${
-        leito.respiracao ||
-        "Nao informado"
-      }`
-    );
+      if (leito.diagnostico) {
+
+        adicionar(
+          `Diagnostico/descricao: ${leito.diagnostico}`
+        );
+      }
 
 
-    adicionar(
-      `Dispositivos: ${
-        (leito.dispositivos || [])
-          .join(", ") ||
-        "Nenhum registrado"
-      }`
-    );
-
-
-    adicionar(
-      `Precaucoes: ${
-        (leito.precaucoes || [])
-          .join(", ") ||
-        "Nao informado"
-      }`
-    );
-
-
-    if (leito.pendenciasExames) {
       adicionar(
-        `Exames pendentes: ${leito.pendenciasExames}`
+        `Respiracao: ${
+          leito.respiracao ||
+          "Nao informado"
+        }`
       );
-    }
 
 
-    if (leito.acontecimentos) {
       adicionar(
-        `Acontecimentos: ${leito.acontecimentos}`
+        `Dispositivos: ${
+          (leito.dispositivos || [])
+            .join(", ") ||
+          "Nenhum registrado"
+        }`
       );
-    }
 
 
-    if (leito.condutas) {
       adicionar(
-        `Condutas/pendencias: ${leito.condutas}`
+        `Precaucoes: ${
+          (leito.precaucoes || [])
+            .join(", ") ||
+          "Nao informado"
+        }`
       );
+
+
+      if (
+        leito.pendenciasExames
+      ) {
+
+        adicionar(
+          `Exames pendentes: ${leito.pendenciasExames}`
+        );
+      }
+
+
+      if (
+        leito.acontecimentos
+      ) {
+
+        adicionar(
+          `Acontecimentos: ${leito.acontecimentos}`
+        );
+      }
+
+
+      if (leito.condutas) {
+
+        adicionar(
+          `Condutas/pendencias: ${leito.condutas}`
+        );
+      }
+
+
+      if (leito.passagem) {
+
+        adicionar(
+          `Proximo plantao: ${leito.passagem}`
+        );
+      }
+
+
+      if (
+        leito.avaliacaoImportada &&
+        !leito.confirmadoNoPlantaoAtual
+      ) {
+
+        adicionar(
+          "ATENCAO: avaliacao importada do plantao anterior e ainda nao confirmada no plantao atual.",
+          9,
+          true
+        );
+      }
+
+
+      y += 3;
     }
+  );
 
 
-    if (leito.passagem) {
-      adicionar(
-        `Proximo plantao: ${leito.passagem}`
-      );
-    }
-
-
-    y += 3;
-  });
-
+  // ========================================
+  // DISTRIBUIÇÃO ASSISTENCIAL
+  // ========================================
 
   if (
     state.dimensionamento
@@ -4473,7 +7577,7 @@ async function gerarPDF() {
 
 
     adicionar(
-      "ESCALA ASSISTENCIAL DO PLANTAO",
+      "DISTRIBUICAO ASSISTENCIAL DO PLANTAO",
       14,
       true
     );
@@ -4481,25 +7585,125 @@ async function gerarPDF() {
 
     state.dimensionamento
       .grupos
-      .forEach(grupo => {
+      .forEach(
+        grupo => {
 
-        adicionar(
-          `${grupo.profissional}: ${
-            grupo.leitos.length
-          } paciente(s)/leito(s) - ${
-            grupo.leitos
-              .map(item => item.id)
-              .join(", ") ||
-            "Sem leitos"
-          } | Indice ${
-            Number(
-              grupo.carga || 0
-            ).toFixed(1)
-          }`
-        );
-      });
+          const profissional =
+            state.profissionais.find(
+              item =>
+                item.id ===
+                grupo.profissionalId
+            );
+
+
+          const apoio =
+            profissionalEhApoio(
+              grupo.profissionalId
+            );
+
+
+          const tipoApoio =
+            descricaoTipoApoio(
+              grupo.profissionalId
+            );
+
+
+          adicionar(
+            `${grupo.profissional}${
+              apoio
+                ? ` - ${tipoApoio}`
+                : ""
+            }: ${
+              grupo.leitos.length
+            } paciente(s)/leito(s) - ${
+              grupo.leitos
+                .map(
+                  item =>
+                    item.id
+                )
+                .join(", ") ||
+              "Sem leitos"
+            } | Indice ${
+              Number(
+                grupo.carga || 0
+              ).toFixed(1)
+            }`
+          );
+
+
+          if (
+            profissional?.situacao ===
+            "cobertura"
+          ) {
+
+            adicionar(
+              `Situacao: cobertura${
+                profissional.cobrindo
+                  ? ` de ${profissional.cobrindo}`
+                  : ""
+              }.`,
+              9
+            );
+          }
+
+
+          if (apoio) {
+
+            adicionar(
+              grupo.leitos.length
+                ? "Atribuicao excepcional ao Apoio neste plantao."
+                : "Profissional de Apoio fora do rodizio regular.",
+              9
+            );
+          }
+        }
+      );
   }
 
+
+  // ========================================
+  // ALTERAÇÕES DA ESCALA
+  // ========================================
+
+  if (
+    state.alteracoesEscala?.length
+  ) {
+
+    if (y > 245) {
+
+      doc.addPage();
+
+      y = 15;
+    }
+
+
+    adicionar(
+      "ALTERACOES DA ESCALA",
+      14,
+      true
+    );
+
+
+    state.alteracoesEscala
+      .forEach(
+        alteracao => {
+
+          adicionar(
+            `- ${
+              alteracao.descricao ||
+              alteracao.tipo ||
+              "Alteracao registrada"
+            }`,
+            9
+          );
+        }
+      );
+  }
+
+
+  // ========================================
+  // INFORMAÇÕES GERAIS DO PLANTÃO
+  // ========================================
 
   if (
     state.plantao.acontecimentos ||
@@ -4531,7 +7735,9 @@ async function gerarPDF() {
     }
 
 
-    if (state.plantao.passagem) {
+    if (
+      state.plantao.passagem
+    ) {
 
       adicionar(
         `Passagem geral: ${state.plantao.passagem}`
@@ -4540,7 +7746,40 @@ async function gerarPDF() {
   }
 
 
+  // ========================================
+  // AVISO OPERACIONAL
+  // ========================================
+
+  if (y > 250) {
+
+    doc.addPage();
+
+    y = 15;
+  }
+
+
+  y += 4;
+
+
+  adicionar(
+    "OBSERVACAO",
+    10,
+    true
+  );
+
+
+  adicionar(
+    "Este documento auxilia a organizacao e a passagem do plantao. As informacoes devem ser revisadas pelo profissional responsavel de acordo com a avaliacao atual, protocolos institucionais e normas aplicaveis.",
+    8
+  );
+
+
+  // ========================================
+  // RODAPÉ
+  // ========================================
+
   doc.setFontSize(8);
+
 
   doc.setTextColor(
     100,
@@ -4560,39 +7799,432 @@ async function gerarPDF() {
     pagina++
   ) {
 
-    doc.setPage(pagina);
+    doc.setPage(
+      pagina
+    );
+
 
     doc.text(
-      `Dia de Treinamento - Pagina ${pagina}/${paginas}`,
+      `Cadê a Escala? | Dia de Treinamento - Pagina ${pagina}/${paginas}`,
       15,
       290
     );
   }
 
 
+  // ========================================
+  // SALVAR PDF
+  // ========================================
+
   const nomeSetor =
-    (
+    nomeSeguroArquivo(
       state.config.setor ||
-      "Plantao"
-    )
-      .replace(/\s+/g, "_")
-      .replace(
-        /[^a-zA-Z0-9_-]/g,
-        ""
-      );
+      "plantao"
+    );
 
 
   doc.save(
-    `Escala_${nomeSetor}_${
+    `Relatorio_Plantao_${nomeSetor}_${
       state.config.data ||
-      "relatorio"
+      "sem_data"
     }.pdf`
   );
 
 
   toast(
-    "PDF gerado com sucesso."
+    "Relatório final do plantão gerado com sucesso."
   );
+}
+
+
+// ==========================================
+// FINALIZAR PLANTÃO
+// ==========================================
+
+async function finalizarPlantao() {
+
+  salvarDados(false);
+
+
+  const naoConfirmados =
+    state.leitos.filter(
+      leito =>
+        leito.avaliacaoImportada &&
+        !leito.confirmadoNoPlantaoAtual
+    );
+
+
+  if (
+    naoConfirmados.length
+  ) {
+
+    const continuar =
+      confirm(
+        `ATENÇÃO\n\nExistem ${naoConfirmados.length} leito(s) com avaliação importada do plantão anterior que ainda não foram confirmados ou reavaliados neste plantão.\n\nDeseja continuar mesmo assim?`
+      );
+
+
+    if (!continuar) {
+
+      showTab(
+        "leitos"
+      );
+
+      return;
+    }
+  }
+
+
+  const confirmar =
+    confirm(
+      "Deseja finalizar este plantão?\n\nO plantão será salvo no histórico antes da preparação do próximo."
+    );
+
+
+  if (!confirmar) {
+    return;
+  }
+
+
+  // ========================================
+  // CONTROLE COMERCIAL / TRIAL
+  // ========================================
+  // Se o auth.js disponibilizar o controle
+  // de finalização, utilizamos a função dele.
+  // ========================================
+
+  if (
+    typeof window
+      .finalizarPlantaoComControle ===
+      "function"
+  ) {
+
+    try {
+
+      const permitido =
+        await window
+          .finalizarPlantaoComControle();
+
+
+      if (permitido === false) {
+
+        toast(
+          "Não foi possível finalizar o plantão. Verifique o status do seu acesso."
+        );
+
+        return;
+      }
+    }
+
+    catch (erro) {
+
+      console.error(
+        "Erro no controle de finalização:",
+        erro
+      );
+
+
+      toast(
+        "Não foi possível validar a finalização do plantão."
+      );
+
+      return;
+    }
+  }
+
+
+  salvarPlantaoHistorico();
+
+
+  await gerarPDF();
+
+
+  // ========================================
+  // PREPARAR PRÓXIMO PLANTÃO
+  // ========================================
+
+  encerrarPlantaoEPrepararProximo();
+}
+
+
+// ==========================================
+// ENCERRAR E PREPARAR PRÓXIMO PLANTÃO
+// ==========================================
+
+function encerrarPlantaoEPrepararProximo() {
+
+  // O Apoio temporário existe apenas
+  // no plantão que está sendo encerrado.
+
+  state.apoioTemporarioId =
+    null;
+
+
+  // As alterações manuais pertencem
+  // ao plantão encerrado.
+
+  state.alteracoesEscala =
+    [];
+
+
+  // A escala-base permanece preservada.
+  // A partir dela / da distribuição atual,
+  // podemos preparar o próximo rodízio.
+
+  if (
+    state.escalaBase &&
+    state.rodizio?.ativo
+  ) {
+
+    preDimensionarProximoPlantao();
+  }
+
+
+  // ========================================
+  // LIMPAR CAMPOS GERAIS DO PLANTÃO
+  // ========================================
+
+  state.plantao = {
+
+    acontecimentos:
+      "",
+
+    passagem:
+      ""
+  };
+
+
+  // ========================================
+  // AS AVALIAÇÕES DOS LEITOS NÃO SÃO
+  // AUTOMATICAMENTE APAGADAS.
+  //
+  // Isso permite continuidade assistencial
+  // no mesmo dispositivo.
+  //
+  // Elas passam a ser tratadas como
+  // informações provenientes do plantão
+  // anterior até nova confirmação.
+  // ========================================
+
+  state.leitos =
+    state.leitos.map(
+      leito => ({
+
+        ...leito,
+
+        avaliacaoImportada:
+          true,
+
+        importadoEm:
+          new Date()
+            .toISOString(),
+
+        confirmadoNoPlantaoAtual:
+          false
+      })
+    );
+
+
+  // A distribuição atual é encerrada.
+  // O próximo enfermeiro poderá aplicar
+  // o pré-dimensionamento ou montar
+  // manualmente sua própria escala.
+
+  state.dimensionamento =
+    null;
+
+
+  salvarDados(false);
+
+
+  atualizarDashboard();
+
+  renderizarLeitos();
+
+  renderizarPreviaPlantao();
+
+  renderizarProfissionais();
+
+  renderizarResultadoDimensionamento();
+
+
+  showTab(
+    "inicio"
+  );
+
+
+  toast(
+    "Plantão finalizado e próximo plantão preparado."
+  );
+}
+// ==========================================
+// PRÉVIA / PASSAGEM DO PLANTÃO
+// ==========================================
+
+function renderizarPreviaPlantao() {
+
+  const acontecimentos =
+    document.getElementById(
+      "plantao-acontecimentos"
+    );
+
+  const passagem =
+    document.getElementById(
+      "plantao-passagem"
+    );
+
+
+  if (acontecimentos) {
+    acontecimentos.value =
+      state.plantao.acontecimentos || "";
+  }
+
+  if (passagem) {
+    passagem.value =
+      state.plantao.passagem || "";
+  }
+
+
+  const elemento =
+    document.getElementById(
+      "previa-plantao"
+    );
+
+  if (!elemento) {
+    return;
+  }
+
+
+  const itens =
+    state.leitos.filter(leito =>
+      [
+        leito.pendenciasExames,
+        leito.acontecimentos,
+        leito.condutas,
+        leito.passagem
+      ].some(item =>
+        item?.trim()
+      )
+    );
+
+
+  const acoesPassagem = `
+
+    <div class="card">
+
+      <h3>
+        📦 Passagem entre plantões
+      </h3>
+
+      <p class="muted">
+        Exporte um arquivo do Cadê a Escala? para o
+        próximo enfermeiro. Não inclua nomes, documentos
+        ou outros identificadores pessoais dos pacientes.
+      </p>
+
+      <button
+        type="button"
+        class="primary-btn full"
+        onclick="exportarPassagemPlantao()"
+      >
+        📤 Exportar plantão para o próximo enfermeiro
+      </button>
+
+      <button
+        type="button"
+        class="secondary-btn full"
+        onclick="selecionarArquivoPassagem()"
+      >
+        📎 IMPORTAR PLANTÃO ANTERIOR
+      </button>
+
+    </div>
+  `;
+
+
+  const resumo =
+    itens.length
+
+      ? itens.map(leito => `
+
+          <div class="handover-item">
+
+            <h4>
+              🛏️ LEITO ${escapeHtml(leito.id)}
+              — ${GRAVIDADES[leito.gravidade]}
+            </h4>
+
+            ${
+              leito.avaliacaoImportada &&
+              !leito.confirmadoNoPlantaoAtual
+                ? `
+                    <p>
+                      <strong>
+                        📥 Avaliação importada do plantão anterior
+                        — ainda não confirmada.
+                      </strong>
+                    </p>
+                  `
+                : ""
+            }
+
+            ${
+              leito.pendenciasExames
+                ? `
+                    <p>
+                      <strong>Exames:</strong>
+                      ${escapeHtml(leito.pendenciasExames)}
+                    </p>
+                  `
+                : ""
+            }
+
+            ${
+              leito.acontecimentos
+                ? `
+                    <p>
+                      <strong>Acontecimentos:</strong>
+                      ${escapeHtml(leito.acontecimentos)}
+                    </p>
+                  `
+                : ""
+            }
+
+            ${
+              leito.condutas
+                ? `
+                    <p>
+                      <strong>Pendências:</strong>
+                      ${escapeHtml(leito.condutas)}
+                    </p>
+                  `
+                : ""
+            }
+
+            ${
+              leito.passagem
+                ? `
+                    <p>
+                      <strong>Próximo turno:</strong>
+                      ${escapeHtml(leito.passagem)}
+                    </p>
+                  `
+                : ""
+            }
+
+          </div>
+
+        `).join("")
+
+      : `
+          <p class="muted">
+            Nenhuma pendência registrada nos leitos.
+          </p>
+        `;
+
+
+  elemento.innerHTML =
+    acoesPassagem + resumo;
 }
 
 
@@ -4608,10 +8240,10 @@ function exportarBackup() {
   const payload = {
 
     app:
-      "Escala Assistencial",
+      "Cadê a Escala?",
 
     versao:
-      "4.1",
+      "4.2",
 
     exportadoEm:
       new Date().toISOString(),
@@ -4648,14 +8280,20 @@ function exportarBackup() {
   link.href = url;
 
   link.download =
-    `backup_escala_${
+    `backup_cade_a_escala_${
       new Date()
         .toISOString()
         .slice(0, 10)
     }.json`;
 
 
+  document.body.appendChild(
+    link
+  );
+
   link.click();
+
+  link.remove();
 
   URL.revokeObjectURL(url);
 
@@ -4742,6 +8380,11 @@ function importarBackup(event) {
         [];
 
 
+      state.apoioTemporarioId =
+        dados.apoioTemporarioId ||
+        null;
+
+
       normalizarProfissionais();
 
       normalizarLeitos();
@@ -4763,6 +8406,8 @@ function importarBackup(event) {
       renderizarProfissionais();
 
       renderizarResultadoDimensionamento();
+
+      renderizarPreviaPlantao();
 
 
       toast(
@@ -4890,7 +8535,7 @@ document
 
 
 // ==========================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO DO APLICATIVO
 // ==========================================
 
 document.addEventListener(
@@ -4912,6 +8557,8 @@ document.addEventListener(
     renderizarProfissionais();
 
     renderizarResultadoDimensionamento();
+
+    renderizarPreviaPlantao();
 
 
     document
