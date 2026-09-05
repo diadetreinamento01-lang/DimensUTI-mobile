@@ -1,1048 +1,265 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
-  <meta
-    name="description"
-    content="DimensUTI Mobile - apoio ao dimensionamento e organização do plantão de enfermagem."
-  />
-
-  <title>DimensUTI Mobile | Dia de Treinamento</title>
-
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="assets/logo-dia-de-treinamento.jpeg" />
-  <link rel="apple-touch-icon" href="assets/logo-dia-de-treinamento.jpeg" />
-  <link rel="stylesheet" href="css/style.css?v=4.0.1" />
-
-  <!-- Biblioteca para geração de PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
-
-<body>
-
-  <!-- =========================================
-       APLICATIVO PRINCIPAL
-  ========================================== -->
-  <div id="app-container" style="display:none;">
-
-    <div class="app-shell">
-
-      <!-- TOPO -->
-      <header class="topbar">
-
-        <div class="brand">
-
-          <img
-            src="assets/logo-dia-de-treinamento.jpeg"
-            alt="Logo Dia de Treinamento"
-            class="brand-logo"
-          />
-
-          <div>
-            <h1>DimensUTI <span>Mobile</span></h1>
-            <p>by Dia de Treinamento</p>
-          </div>
-
-        </div>
-
-        <div class="topbar-actions">
-          <button
-            class="icon-button"
-            id="btn-theme"
-            title="Alternar modo escuro"
-          >
-            🌙
-          </button>
-
-          <button
-            class="icon-button"
-            id="btn-install"
-            title="Instalar aplicativo"
-            hidden
-          >
-            📲
-          </button>
-        </div>
-
-      </header>
-
-
-      <!-- CONTEÚDO -->
-      <main class="content">
-
-        <!-- =========================================
-             INÍCIO
-        ========================================== -->
-        <section class="tab active" id="tab-inicio">
-
-          <div class="hero-card">
-
-            <div>
-
-              <p class="eyebrow">
-                ORGANIZAÇÃO DO PLANTÃO
-              </p>
-
-              <h2>
-                DimensUTI Mobile
-                <span class="version-chip">4.0</span>
-              </h2>
-
-              <p class="muted">
-                Dimensionamento independente, avaliação dos leitos
-                e passagem de plantão sem identificação nominal
-                de pacientes.
-              </p>
-
-              <div class="hero-actions">
-
-                <button
-                  class="hero-small-btn"
-                  onclick="showTab('leitos')"
-                >
-                  🛏️ Avaliar agora
-                </button>
-
-                <button
-                  class="hero-small-btn outline"
-                  onclick="showTab('plantao')"
-                >
-                  📋 Passagem
-                </button>
-
-              </div>
-
-            </div>
-
-            <div class="hero-icon">
-              🏥
-            </div>
-
-          </div>
-
-
-          <!-- ESTATÍSTICAS -->
-          <div class="stats-grid">
-
-            <div class="stat-card">
-              <span>🛏️</span>
-              <strong id="stat-leitos">0</strong>
-              <small>Leitos ativos</small>
-            </div>
-
-            <div class="stat-card">
-              <span>👥</span>
-              <strong id="stat-equipe">0</strong>
-              <small>Profissionais ativos</small>
-            </div>
-
-            <div class="stat-card">
-              <span>🔴</span>
-              <strong id="stat-criticos">0</strong>
-              <small>Leitos críticos</small>
-            </div>
-
-            <div class="stat-card">
-              <span>⚠️</span>
-              <strong id="stat-pendencias">0</strong>
-              <small>Pendências</small>
-            </div>
-
-          </div>
-
-
-          <!-- PLANTÃO ATUAL -->
-          <div class="card">
-
-            <div class="section-head">
-
-              <div>
-                <h3>Plantão atual</h3>
-
-                <p class="muted">
-                  Configure os dados antes de iniciar.
-                </p>
-              </div>
-
-              <button
-                class="secondary-btn"
-                onclick="showTab('config')"
-              >
-                ⚙️ Configurar
-              </button>
-
-            </div>
-
-            <div
-              id="inicio-resumo"
-              class="summary-list"
-            ></div>
-
-          </div>
-
-
-          <!-- MAPA DE GRAVIDADE -->
-          <div class="card">
-
-            <div class="section-head">
-
-              <div>
-                <h3>📊 Mapa de gravidade</h3>
-
-                <p class="muted">
-                  Visão rápida dos leitos avaliados.
-                </p>
-              </div>
-
-            </div>
-
-            <div
-              id="mapa-gravidade"
-              class="severity-map"
-            ></div>
-
-          </div>
-
-
-          <div class="quick-actions">
-
-            <button
-              class="primary-btn"
-              onclick="showTab('leitos')"
-            >
-              🛏️ Avaliar Leitos
-            </button>
-
-            <button
-              class="dark-btn"
-              onclick="showTab('dimensionamento')"
-            >
-              🧮 Dimensionar
-            </button>
-
-          </div>
-
-        </section>
-
-
-        <!-- =========================================
-             LEITOS
-        ========================================== -->
-        <section class="tab" id="tab-leitos">
-
-          <div class="section-head">
-
-            <div>
-
-              <h2>🛏️ Avaliação dos Leitos</h2>
-
-              <p class="muted">
-                Sem nomes de pacientes. Utilize apenas a
-                identificação do leito.
-              </p>
-
-            </div>
-
-            <button
-              class="secondary-btn"
-              onclick="salvarDados()"
-            >
-              💾 Salvar
-            </button>
-
-          </div>
-
-
-          <div class="card compact">
-
-            <div class="filter-row">
-
-              <label>Buscar</label>
-
-              <input
-                id="busca-leito"
-                type="search"
-                inputmode="search"
-                placeholder="Ex.: 1, A, Box..."
-                oninput="renderizarLeitos()"
-              />
-
-            </div>
-
-
-            <div class="filter-row">
-
-              <label>Filtrar</label>
-
-              <select
-                id="filtro-gravidade"
-                onchange="renderizarLeitos()"
-              >
-
-                <option value="">Todos os leitos</option>
-                <option value="5">Crítico</option>
-                <option value="4">Muito alta</option>
-                <option value="3">Alta</option>
-                <option value="2">Moderada</option>
-                <option value="1">Baixa</option>
-                <option value="0">Mínima</option>
-
-              </select>
-
-            </div>
-
-          </div>
-
-
-          <div
-            id="lista-leitos"
-            class="beds-grid"
-          ></div>
-
-        </section>
-
-
-        <!-- DETALHE DO LEITO -->
-        <section class="tab" id="tab-leito-detalhe">
-
-          <button
-            class="back-btn"
-            onclick="showTab('leitos')"
-          >
-            ← Voltar para leitos
-          </button>
-
-          <div id="detalhe-leito"></div>
-
-        </section>
-
-
-        <!-- =========================================
-             DIMENSIONAMENTO
-        ========================================== -->
-        <section class="tab" id="tab-dimensionamento">
-
-          <div class="section-head">
-
-            <div>
-
-              <h2>🧮 Dimensionamento</h2>
-
-              <p class="muted">
-                Esta função é independente do relatório final
-                do plantão.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div class="card">
-
-            <h3>Equipe disponível</h3>
-
-            <p class="muted">
-              Informe os profissionais presentes no plantão
-              e sua função.
-            </p>
-
-            <div
-              id="lista-profissionais"
-              class="staff-list"
-            ></div>
-
-            <button
-              class="secondary-btn full"
-              onclick="adicionarProfissional()"
-            >
-              ➕ Adicionar profissional
-            </button>
-
-          </div>
-
-
-          <!-- RODÍZIO -->
-          <div class="card">
-
-            <h3>
-              🔄 Escala inteligente e rodízio automático
-            </h3>
-
-            <p class="muted">
-              Quando a equipe permanece igual, o próximo plantão
-              pode avançar automaticamente os leitos de cada técnico.
-              Exemplo: quem ficou com 1 e 6 passa para 2 e 7.
-            </p>
-
-            <button
-              class="dark-btn full"
-              onclick="preDimensionarProximoPlantao()"
-            >
-              🔄 Pré-dimensionar próximo plantão
-            </button>
-
-            <div
-              id="resultado-rodizio"
-              class="rotation-preview hidden"
-            ></div>
-
-          </div>
-
-
-          <!-- CRITÉRIO -->
-          <div class="card">
-
-            <h3>Critério de distribuição</h3>
-
-            <p class="muted">
-              A sugestão utiliza um índice operacional composto
-              por gravidade, suporte respiratório, quantidade de
-              dispositivos e precauções registradas.
-            </p>
-
-            <div class="formula-card">
-
-              <span>
-                📊 Índice operacional
-              </span>
-
-              <strong>
-                Gravidade + suporte respiratório +
-                dispositivos + precauções
-              </strong>
-
-            </div>
-
-            <button
-              class="primary-btn full"
-              onclick="gerarDimensionamento()"
-            >
-              🧮 Gerar Dimensionamento
-            </button>
-
-          </div>
-
-
-          <div
-            id="resultado-dimensionamento"
-            class="hidden"
-          ></div>
-
-        </section>
-
-
-        <!-- =========================================
-             PLANTÃO
-        ========================================== -->
-        <section class="tab" id="tab-plantao">
-
-          <div class="section-head">
-
-            <div>
-
-              <h2>📋 Finalização do Plantão</h2>
-
-              <p class="muted">
-                Resumo operacional e passagem de plantão.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div class="card">
-
-            <h3>Resumo geral do turno</h3>
-
-            <p class="muted">
-              Use linguagem objetiva e evite dados pessoais
-              identificáveis.
-            </p>
-
-
-            <label class="field-label">
-              Acontecimentos gerais do plantão
-            </label>
-
-            <textarea
-              id="plantao-acontecimentos"
-              rows="4"
-              placeholder="Registre acontecimentos gerais importantes do turno..."
-            ></textarea>
-
-
-            <label class="field-label">
-              Informações gerais para o próximo plantão
-            </label>
-
-            <textarea
-              id="plantao-passagem"
-              rows="4"
-              placeholder="Orientações gerais para a equipe do próximo turno..."
-            ></textarea>
-
-          </div>
-
-
-          <div class="card">
-
-            <h3>Prévia da passagem de plantão</h3>
-
-            <div
-              id="previa-plantao"
-              class="handover-preview"
-            ></div>
-
-          </div>
-
-
-          <button
-            class="primary-btn full large"
-            onclick="gerarPDF()"
-          >
-            📄 Gerar Relatório Final em PDF
-          </button>
-
-
-          <button
-            class="secondary-btn full"
-            onclick="salvarPlantaoHistorico()"
-          >
-            📚 Encerrar e salvar plantão
-          </button>
-
-
-          <button
-            class="dark-btn full"
-            onclick="encerrarPlantaoEPrepararProximo()"
-          >
-            🔄 Encerrar e preparar próximo plantão
-          </button>
-
-        </section>
-
-
-        <!-- =========================================
-             HISTÓRICO
-        ========================================== -->
-        <section class="tab" id="tab-historico">
-
-          <div class="section-head">
-
-            <div>
-
-              <h2>📚 Histórico</h2>
-
-              <p class="muted">
-                Registros salvos neste dispositivo.
-              </p>
-
-            </div>
-
-            <button
-              class="danger-btn"
-              onclick="limparHistorico()"
-            >
-              🗑️ Limpar
-            </button>
-
-          </div>
-
-
-          <div
-            id="lista-historico"
-            class="history-list"
-          ></div>
-
-        </section>
-
-
-        <!-- =========================================
-             CONFIGURAÇÕES
-        ========================================== -->
-        <section class="tab" id="tab-config">
-
-          <div class="section-head">
-
-            <div>
-
-              <h2>⚙️ Configurações do Plantão</h2>
-
-              <p class="muted">
-                Dados usados no dimensionamento e relatório.
-              </p>
-
-            </div>
-
-          </div>
-
-
-          <div class="card form-card">
-
-            <label>Hospital / Instituição</label>
-
-            <input
-              id="cfg-hospital"
-              type="text"
-              placeholder="Ex.: Hospital..."
-            />
-
-
-            <label>Setor / UTI</label>
-
-            <input
-              id="cfg-setor"
-              type="text"
-              placeholder="Ex.: UTI Adulto A"
-            />
-
-
-            <div class="two-cols">
-
-              <div>
-
-                <label>Data</label>
-
-                <input
-                  id="cfg-data"
-                  type="date"
-                />
-
-              </div>
-
-
-              <div>
-
-                <label>Turno</label>
-
-                <select id="cfg-turno">
-                  <option>Diurno</option>
-                  <option>Noturno</option>
-                </select>
-
-              </div>
-
-            </div>
-
-
-            <label>Enfermeiro responsável</label>
-
-            <input
-              id="cfg-enfermeiro"
-              type="text"
-              placeholder="Nome do profissional responsável"
-            />
-
-
-            <label>COREN</label>
-
-            <input
-              id="cfg-coren"
-              type="text"
-              placeholder="Ex.: COREN-UF 000000"
-            />
-
-
-            <div class="two-cols">
-
-              <div>
-
-                <label>Quantidade de leitos</label>
-
-                <input
-                  id="cfg-qtd-leitos"
-                  type="number"
-                  min="1"
-                  max="30"
-                  value="10"
-                />
-
-              </div>
-
-
-              <div>
-
-                <label>Identificação</label>
-
-                <select id="cfg-tipo-leito">
-
-                  <option value="numerico">
-                    Numérica (1, 2, 3...)
-                  </option>
-
-                  <option value="alfabetico">
-                    Alfabética (A, B, C...)
-                  </option>
-
-                  <option value="personalizado">
-                    Personalizada
-                  </option>
-
-                </select>
-
-              </div>
-
-            </div>
-
-
-            <div
-              id="identificadores-personalizados"
-              class="hidden"
-            >
-
-              <label>
-                Identificadores personalizados
-              </label>
-
-              <textarea
-                id="cfg-identificadores"
-                rows="3"
-                placeholder="Ex.: 101, 102, A1, A2, Box 1"
-              ></textarea>
-
-              <small>
-                Separe cada identificação por vírgula.
-              </small>
-
-            </div>
-
-
-            <button
-              class="primary-btn full"
-              onclick="aplicarConfiguracaoLeitos()"
-            >
-              🛏️ Aplicar configuração dos leitos
-            </button>
-
-
-            <button
-              class="dark-btn full"
-              onclick="salvarDados()"
-            >
-              💾 Salvar configurações
-            </button>
-
-          </div>
-
-
-          <div class="card warning-card">
-
-            <h3>🔒 Privacidade e uso responsável</h3>
-
-            <p>
-              Esta versão foi projetada para trabalhar com identificação
-              de leitos e informações operacionais. Evite inserir nomes,
-              documentos ou outros identificadores pessoais de pacientes.
-            </p>
-
-          </div>
-
-
-          <div class="card">
-
-            <h3>💾 Backup e restauração</h3>
-
-            <p class="muted">
-              Exporte os dados operacionais deste dispositivo.
-            </p>
-
-            <button
-              class="secondary-btn full"
-              onclick="exportarBackup()"
-            >
-              ⬇️ Exportar backup
-            </button>
-
-
-            <label class="secondary-btn full file-import-label">
-
-              ⬆️ Restaurar backup
-
-              <input
-                id="importar-backup"
-                type="file"
-                accept="application/json"
-                onchange="importarBackup(event)"
-                hidden
-              >
-
-            </label>
-
-          </div>
-
-
-          <div class="card">
-
-            <h3>📸 Divulgação</h3>
-
-            <p class="muted">
-              Aplicativo associado à página Dia de Treinamento.
-            </p>
-
-            <a
-              class="instagram-btn"
-              href="https://instagram.com/diadetreinamento1"
-              target="_blank"
-              rel="noopener"
-            >
-              📸 Abrir @diadetreinamento1
-            </a>
-
-          </div>
-
-        </section>
-
-      </main>
-
-
-      <!-- MENU INFERIOR -->
-      <nav class="bottom-nav">
-
-        <button
-          class="nav-item active"
-          data-tab="inicio"
-          onclick="showTab('inicio')"
-        >
-          <span>🏠</span>
-          <small>Início</small>
-        </button>
-
-
-        <button
-          class="nav-item"
-          data-tab="leitos"
-          onclick="showTab('leitos')"
-        >
-          <span>🛏️</span>
-          <small>Leitos</small>
-        </button>
-
-
-        <button
-          class="nav-item nav-main"
-          data-tab="dimensionamento"
-          onclick="showTab('dimensionamento')"
-        >
-          <span>🧮</span>
-          <small>Dimensionar</small>
-        </button>
-
-
-        <button
-          class="nav-item"
-          data-tab="plantao"
-          onclick="showTab('plantao')"
-        >
-          <span>📋</span>
-          <small>Plantão</small>
-        </button>
-
-
-        <button
-          class="nav-item"
-          data-tab="historico"
-          onclick="showTab('historico')"
-        >
-          <span>📚</span>
-          <small>Histórico</small>
-        </button>
-
-
-        <button
-          class="nav-item"
-          data-tab="config"
-          onclick="showTab('config')"
-        >
-          <span>⚙️</span>
-          <small>Config</small>
-        </button>
-
-      </nav>
-
+<!-- =========================================
+     ESCALA ASSISTENCIAL
+========================================== -->
+<section class="tab" id="tab-dimensionamento">
+
+  <div class="section-head">
+    <div>
+      <h2>👥 Escala Assistencial</h2>
+
+      <p class="muted">
+        Monte e edite manualmente a distribuição dos pacientes/leitos
+        entre os profissionais do plantão.
+      </p>
     </div>
-    <!-- FIM app-shell -->
-
   </div>
-  <!-- FIM app-container -->
 
 
-  <!-- TOAST -->
-  <div id="toast" class="toast"></div>
+  <!-- PRIMEIRA ESCALA MANUAL -->
+  <div class="card warning-card">
 
+    <h3>✋ Primeira escala sempre manual</h3>
 
-  <!-- =========================================
-       TELA DE AUTENTICAÇÃO
-  ========================================== -->
-  <div id="auth-screen" class="auth-screen">
+    <p class="muted">
+      A primeira distribuição não será automática.
+      O enfermeiro define quais pacientes/leitos ficam com cada
+      profissional.
+    </p>
 
-    <div class="auth-card">
-
-      <div class="auth-logo">
-
-        <img
-          src="assets/logo-dia-de-treinamento.jpeg"
-          alt="Dia de Treinamento"
-        >
-
-      </div>
-
-
-      <h1>DimensUTI</h1>
-
-
-      <p class="auth-subtitle">
-        Dimensionamento inteligente para enfermagem
-      </p>
-
-
-      <div class="trial-box">
-
-        🎁 <strong>Teste gratuito</strong>
-        <br>
-
-        Utilize até
-        <strong>3 plantões gratuitamente</strong>
-
-      </div>
-
-
-      <!-- LOGIN -->
-      <div id="login-form">
-
-        <h2>Entrar</h2>
-
-
-        <input
-          type="email"
-          id="login-email"
-          placeholder="Seu e-mail"
-          autocomplete="email"
-        >
-
-
-        <input
-          type="password"
-          id="login-password"
-          placeholder="Sua senha"
-          autocomplete="current-password"
-        >
-
-
-        <button
-          class="auth-button"
-          onclick="entrarNoSistema()"
-        >
-          🔐 Entrar
-        </button>
-
-
-        <button
-          class="auth-link"
-          onclick="mostrarCadastro()"
-        >
-          Criar minha conta
-        </button>
-
-
-        <button
-          class="auth-link"
-          onclick="esqueciMinhaSenha()"
-        >
-          Esqueci minha senha
-        </button>
-
-      </div>
-
-
-      <!-- CADASTRO -->
-      <div
-        id="register-form"
-        style="display:none"
-      >
-
-        <h2>Criar conta</h2>
-
-
-        <input
-          type="text"
-          id="register-name"
-          placeholder="Seu nome"
-          autocomplete="name"
-        >
-
-
-        <input
-          type="email"
-          id="register-email"
-          placeholder="Seu e-mail"
-          autocomplete="email"
-        >
-
-
-        <input
-          type="password"
-          id="register-password"
-          placeholder="Crie uma senha"
-          autocomplete="new-password"
-        >
-
-
-        <button
-          class="auth-button"
-          onclick="registrarUsuario()"
-        >
-          👤 Criar conta
-        </button>
-
-
-        <button
-          class="auth-link"
-          onclick="mostrarLogin()"
-        >
-          Já tenho uma conta
-        </button>
-
-      </div>
-
-
-      <p class="auth-footer">
-
-        Ao utilizar o DimensUTI você concorda com os
-        Termos de Uso e Política de Privacidade.
-
-      </p>
-
-    </div>
+    <p class="muted">
+      Não existe limite fixo de pacientes por técnico.
+      O sistema poderá ser utilizado em UTI, enfermaria,
+      pronto-socorro e outros setores hospitalares.
+    </p>
 
   </div>
 
 
-  <!-- INDICADOR DA ASSINATURA -->
+  <!-- EQUIPE -->
+  <div class="card">
+
+    <h3>👥 Equipe disponível</h3>
+
+    <p class="muted">
+      Cadastre os profissionais presentes neste plantão.
+    </p>
+
+    <p class="muted">
+      Posteriormente será possível identificar profissionais titulares,
+      de troca, ausentes e profissionais que estão realizando cobertura.
+    </p>
+
+    <div
+      id="lista-profissionais"
+      class="staff-list"
+    ></div>
+
+    <button
+      class="secondary-btn full"
+      onclick="adicionarProfissional()"
+    >
+      ➕ Adicionar profissional
+    </button>
+
+  </div>
+
+
+  <!-- ESCALA BASE -->
+  <div class="card">
+
+    <div class="section-head">
+      <div>
+
+        <h3>📝 Escala-base manual</h3>
+
+        <p class="muted">
+          Faça a primeira distribuição manualmente.
+        </p>
+
+      </div>
+    </div>
+
+
+    <div class="formula-card">
+
+      <span>
+        Regra principal
+      </span>
+
+      <strong>
+        A decisão manual do enfermeiro sempre prevalece.
+      </strong>
+
+    </div>
+
+
+    <div class="alert-box">
+
+      👤 Cada profissional poderá receber quantos pacientes/leitos
+      forem necessários.
+
+      <br><br>
+
+      Exemplos:
+
+      <br>
+
+      UTI: Técnico A → 1, 6
+
+      <br>
+
+      Enfermaria: Técnico B → 201, 202, 203, 204, 205, 206,
+      207, 208, 209, 210, 211, 212
+
+    </div>
+
+
+    <button
+      class="primary-btn full"
+      id="btn-iniciar-escala-manual"
+      onclick="iniciarEscalaManual()"
+    >
+      📝 Montar / editar escala manual
+    </button>
+
+
+    <div
+      id="editor-escala-manual"
+      class="hidden"
+    ></div>
+
+  </div>
+
+
+  <!-- RESULTADO DA ESCALA -->
   <div
-    id="trial-indicator"
-    class="trial-indicator"
+    id="resultado-dimensionamento"
+    class="hidden"
   ></div>
 
 
-  <!-- =========================================
-     SCRIPTS - DIMENSUTI MOBILE 4.0
-========================================== -->
+  <!-- RODÍZIO -->
+  <div class="card">
 
-<!-- BIBLIOTECA SUPABASE -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <h3>🔄 Rodízio configurável</h3>
 
-<!-- CONFIGURAÇÃO DO SUPABASE -->
-<script src="js/supabase-config.js?v=4.0.1"></script>
+    <p class="muted">
+      Depois que a primeira escala for salva, o sistema poderá
+      preparar a distribuição do próximo plantão.
+    </p>
 
-<!-- LOGIN / CADASTRO / ASSINATURA -->
-<script src="js/auth.js?v=4.0.1"></script>
+    <p class="muted">
+      O rodízio será configurável pelo enfermeiro e não ficará
+      limitado ao modelo 1 e 6 → 2 e 7.
+    </p>
 
-<!-- APLICATIVO PRINCIPAL -->
-<script src="js/app.js?v=4.0.1"></script>
 
-</body>
-</html>
+    <button
+      class="secondary-btn full"
+      id="btn-configurar-rodizio"
+      onclick="abrirConfiguracaoRodizio()"
+    >
+      ⚙️ Configurar rodízio
+    </button>
+
+
+    <button
+      class="dark-btn full"
+      id="btn-pre-dimensionar"
+      onclick="preDimensionarProximoPlantao()"
+    >
+      🔄 Preparar próximo plantão
+    </button>
+
+
+    <div
+      id="resultado-rodizio"
+      class="rotation-preview hidden"
+    ></div>
+
+  </div>
+
+
+  <!-- TROCAS E COBERTURAS -->
+  <div class="card">
+
+    <h3>🔁 Trocas, ausências e coberturas</h3>
+
+    <p class="muted">
+      Registre alterações que valem somente para o plantão atual
+      sem modificar permanentemente a escala-base.
+    </p>
+
+
+    <div class="alert-box">
+
+      🟢 Titular presente
+
+      <br>
+
+      🔄 De troca — ausente neste plantão
+
+      <br>
+
+      🟡 Cobertura — profissional de outro plantão
+
+      <br>
+
+      ⚪ Ausente
+
+    </div>
+
+
+    <button
+      class="secondary-btn full"
+      id="btn-gerenciar-coberturas"
+      onclick="abrirTrocasCoberturas()"
+    >
+      🔁 Gerenciar trocas e coberturas
+    </button>
+
+
+    <div
+      id="painel-trocas-coberturas"
+      class="hidden"
+    ></div>
+
+  </div>
+
+
+  <!-- CARGA ASSISTENCIAL -->
+  <div class="card">
+
+    <h3>📊 Apoio por carga assistencial</h3>
+
+    <p class="muted">
+      O índice operacional poderá ajudar o enfermeiro a avaliar
+      a distribuição, mas não substituirá sua decisão.
+    </p>
+
+
+    <div class="formula-card">
+
+      <span>
+        📊 Índice operacional
+      </span>
+
+      <strong>
+        Gravidade + suporte respiratório +
+        dispositivos + precauções
+      </strong>
+
+    </div>
+
+
+    <button
+      class="secondary-btn full"
+      id="btn-sugestao-carga"
+      onclick="gerarSugestaoPorCarga()"
+    >
+      💡 Gerar sugestão por carga assistencial
+    </button>
+
+  </div>
+
+</section>
