@@ -314,3 +314,305 @@ body.dark-mode .auth-card input{
 body.dark-mode .auth-subtitle{
   color:#94a3b8;
 }
+/* ==========================================
+   ESCALA ASSISTENCIAL 4.1
+   EDIÇÃO MANUAL / RODÍZIO / COBERTURAS
+========================================== */
+
+/* Equipe com campo de situação */
+.staff-row{
+  display:grid;
+  grid-template-columns:minmax(0,1.4fr) 120px 150px 44px;
+  gap:8px;
+  align-items:center;
+}
+
+.staff-row input,
+.staff-row select{
+  min-width:0;
+}
+
+.staff-row .small-btn{
+  min-height:46px;
+}
+
+
+/* Editor manual de pacientes/leitos */
+#editor-escala-manual{
+  margin-top:16px;
+}
+
+.manual-bed-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:14px;
+}
+
+.manual-bed-grid .choice{
+  min-height:48px;
+  cursor:pointer;
+  transition:.18s ease;
+}
+
+.manual-bed-grid .choice:hover{
+  border-color:#cbd5e1;
+  transform:translateY(-1px);
+}
+
+.manual-bed-grid .choice.selected-bed{
+  background:#fff1f2;
+  border-color:#fb7185;
+  color:#9f1239;
+}
+
+.manual-bed-grid .choice input:disabled{
+  opacity:.45;
+}
+
+.manual-bed-grid .choice:has(input:disabled){
+  opacity:.60;
+  cursor:not-allowed;
+}
+
+
+/* Cards da distribuição */
+.assignment-card{
+  position:relative;
+}
+
+.assignment-card h4{
+  font-size:16px;
+  margin-bottom:8px;
+}
+
+.assignment-card p{
+  line-height:1.55;
+}
+
+.assignment-card .secondary-btn{
+  margin-top:10px;
+}
+
+
+/* Destaque da regra manual */
+#tab-dimensionamento .warning-card{
+  border-left:5px solid #e11d2e;
+}
+
+#tab-dimensionamento .formula-card{
+  margin-bottom:14px;
+}
+
+
+/* Indicador de quantidade/carga */
+.workload-score{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  flex-wrap:wrap;
+  margin-top:10px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:#f1f5f9;
+  color:#475569;
+  font-size:11px;
+  font-weight:800;
+}
+
+
+/* Rodízio */
+.rotation-preview{
+  margin-top:16px;
+}
+
+.rotation-card{
+  border:1px solid var(--line);
+  background:#f8fafc;
+  border-radius:16px;
+  padding:14px;
+  margin-top:10px;
+}
+
+.rotation-card h4{
+  margin:0 0 7px;
+}
+
+.rotation-card .beds-line{
+  font-weight:800;
+  color:#334155;
+  line-height:1.6;
+  word-break:break-word;
+}
+
+.rotation-card small{
+  display:block;
+  margin-top:5px;
+  color:#64748b;
+}
+
+
+/* Trocas e coberturas */
+#painel-trocas-coberturas{
+  margin-top:14px;
+}
+
+#painel-trocas-coberturas .assignment-card label{
+  display:block;
+  margin:12px 0 6px;
+  font-size:12px;
+  font-weight:800;
+  color:#475569;
+}
+
+#painel-trocas-coberturas select,
+#painel-trocas-coberturas input{
+  width:100%;
+}
+
+
+/* Resumo da escala */
+.assignment-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin:14px 0;
+}
+
+.assignment-summary div{
+  min-width:0;
+}
+
+.assignment-summary strong{
+  word-break:break-word;
+}
+
+
+/* Melhora telas com muitos pacientes */
+#resultado-dimensionamento .assignment-card strong{
+  word-break:break-word;
+}
+
+
+/* Botões da tela da escala */
+#tab-dimensionamento .primary-btn,
+#tab-dimensionamento .secondary-btn,
+#tab-dimensionamento .dark-btn{
+  white-space:normal;
+}
+
+
+/* ==========================================
+   RESPONSIVIDADE
+========================================== */
+
+@media(max-width:760px){
+
+  .staff-row{
+    grid-template-columns:1fr 1fr;
+    padding:12px;
+    background:#f8fafc;
+    border:1px solid var(--line);
+    border-radius:14px;
+  }
+
+  .staff-row input{
+    grid-column:1 / -1;
+  }
+
+  .staff-row .small-btn{
+    width:100%;
+  }
+
+}
+
+
+@media(max-width:520px){
+
+  .staff-row{
+    grid-template-columns:1fr;
+  }
+
+  .staff-row input,
+  .staff-row select,
+  .staff-row .small-btn{
+    grid-column:auto;
+  }
+
+  .manual-bed-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .assignment-summary{
+    grid-template-columns:1fr 1fr 1fr;
+  }
+
+  .assignment-summary strong{
+    font-size:16px;
+  }
+
+  .assignment-summary small{
+    font-size:9px;
+  }
+
+}
+
+
+@media(max-width:360px){
+
+  .manual-bed-grid{
+    grid-template-columns:1fr;
+  }
+
+  .assignment-summary{
+    grid-template-columns:1fr;
+  }
+
+}
+
+
+/* ==========================================
+   MODO ESCURO
+========================================== */
+
+body.dark-mode .staff-row{
+  background:#111827;
+  border-color:#334155;
+}
+
+body.dark-mode .manual-bed-grid .choice{
+  background:#111827;
+  border-color:#334155;
+  color:#e5e7eb;
+}
+
+body.dark-mode .manual-bed-grid .choice.selected-bed{
+  background:#3f111a;
+  border-color:#fb7185;
+  color:#fecdd3;
+}
+
+body.dark-mode .workload-score{
+  background:#1e293b;
+  color:#cbd5e1;
+}
+
+body.dark-mode #painel-trocas-coberturas .assignment-card label{
+  color:#cbd5e1;
+}
+
+body.dark-mode .rotation-card{
+  background:#0f172a;
+  border-color:#334155;
+}
+
+body.dark-mode .rotation-card .beds-line{
+  color:#e5e7eb;
+}
+
+body.dark-mode .staff-row input,
+body.dark-mode .staff-row select{
+  background:#0f172a;
+  color:#e5e7eb;
+  border-color:#334155;
+}
