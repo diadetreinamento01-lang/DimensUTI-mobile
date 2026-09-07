@@ -9523,3 +9523,86 @@ async function carregarReacoesPostComunidade(postId) {
   }
 
 }
+// ==========================================
+// PUBLICAR COMENTÁRIO NA COMUNIDADE
+// ==========================================
+
+async function publicarComentarioComunidade(postId) {
+
+  try {
+
+    const campo =
+      document.getElementById(
+        `novo-comentario-${postId}`
+      );
+
+    const conteudo =
+      campo?.value.trim();
+
+
+    if (!conteudo) {
+
+      alert(
+        "Escreva um comentário."
+      );
+
+      return;
+    }
+
+
+    const {
+      data: { user },
+      error: erroUsuario
+    } =
+      await supabaseClient.auth.getUser();
+
+
+    if (erroUsuario || !user) {
+
+      alert(
+        "Sua sessão não foi encontrada. Entre novamente."
+      );
+
+      return;
+    }
+
+
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("comentarios_comunidade")
+        .insert({
+          post_id: postId,
+          autor_id: user.id,
+          conteudo: conteudo
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    campo.value = "";
+
+
+    await carregarComentariosPostComunidade(
+      postId
+    );
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao publicar comentário:",
+      erro
+    );
+
+    alert(
+      "Não foi possível publicar o comentário."
+    );
+
+  }
+
+}
