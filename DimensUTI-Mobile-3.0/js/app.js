@@ -8791,7 +8791,7 @@ async function carregarComunidade() {
         .remove("hidden");
       
       await carregarCategoriasComunidade();
-      
+      await carregarPostsComunidade();
     } else {
 
       areaSemPerfil
