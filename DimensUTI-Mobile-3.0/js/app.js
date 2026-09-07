@@ -9005,7 +9005,8 @@ async function publicarNaComunidade() {
       "Publicação enviada com sucesso!"
     );
 
-
+    await carregarPostsComunidade();
+    
   } catch (erro) {
 
     console.error(
