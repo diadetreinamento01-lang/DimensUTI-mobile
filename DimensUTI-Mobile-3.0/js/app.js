@@ -8813,3 +8813,208 @@ async function carregarComunidade() {
   }
 
 }
+// ==========================================
+// CARREGAR CATEGORIAS DA COMUNIDADE
+// ==========================================
+
+async function carregarCategoriasComunidade() {
+
+  try {
+
+    const selectCategoria =
+      document.getElementById(
+        "comunidade-categoria"
+      );
+
+
+    if (!selectCategoria) {
+      return;
+    }
+
+
+    const {
+      data: categorias,
+      error
+    } =
+      await supabaseClient
+        .from("categorias_comunidade")
+        .select("id, nome, icone, ordem")
+        .eq("ativa", true)
+        .order("ordem", {
+          ascending: true
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    selectCategoria.innerHTML = `
+      <option value="">
+        Escolha uma categoria
+      </option>
+    `;
+
+
+    categorias?.forEach(categoria => {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        categoria.id;
+
+      option.textContent =
+        `${categoria.icone || ""} ${categoria.nome}`.trim();
+
+      selectCategoria.appendChild(option);
+
+    });
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao carregar categorias da comunidade:",
+      erro
+    );
+
+  }
+
+}
+
+
+// ==========================================
+// PUBLICAR NA COMUNIDADE
+// ==========================================
+
+async function publicarNaComunidade() {
+
+  try {
+
+    const categoriaId =
+      document
+        .getElementById("comunidade-categoria")
+        ?.value;
+
+
+    const titulo =
+      document
+        .getElementById("comunidade-titulo")
+        ?.value
+        .trim();
+
+
+    const conteudo =
+      document
+        .getElementById("comunidade-post")
+        ?.value
+        .trim();
+
+
+    if (!categoriaId) {
+
+      alert(
+        "Escolha uma categoria."
+      );
+
+      return;
+    }
+
+
+    if (!titulo || titulo.length < 3) {
+
+      alert(
+        "Digite um título com pelo menos 3 caracteres."
+      );
+
+      return;
+    }
+
+
+    if (!conteudo || conteudo.length < 3) {
+
+      alert(
+        "Escreva o conteúdo da publicação."
+      );
+
+      return;
+    }
+
+
+    const {
+      data: { user },
+      error: erroUsuario
+    } =
+      await supabaseClient.auth.getUser();
+
+
+    if (erroUsuario || !user) {
+
+      alert(
+        "Sua sessão não foi encontrada. Entre novamente."
+      );
+
+      return;
+    }
+
+
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("posts_comunidade")
+        .insert({
+          autor_id: user.id,
+          categoria_id: Number(categoriaId),
+          titulo: titulo,
+          conteudo: conteudo
+        });
+
+
+    if (error) {
+
+      console.error(
+        "Erro ao publicar na comunidade:",
+        error
+      );
+
+      throw error;
+    }
+
+
+    document
+      .getElementById("comunidade-categoria")
+      .value = "";
+
+
+    document
+      .getElementById("comunidade-titulo")
+      .value = "";
+
+
+    document
+      .getElementById("comunidade-post")
+      .value = "";
+
+
+    alert(
+      "Publicação enviada com sucesso!"
+    );
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao publicar:",
+      erro
+    );
+
+    alert(
+      "Não foi possível publicar. Verifique os dados e tente novamente."
+    );
+
+  }
+
+}
