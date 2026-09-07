@@ -573,7 +573,9 @@ function showTab(id) {
   if (id === "historico") {
     renderizarHistorico();
   }
-
+  if (id === "comunidade") {
+    carregarComunidade();
+  }
   if (id === "inicio") {
     atualizarDashboard();
   }
