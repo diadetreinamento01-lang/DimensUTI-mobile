@@ -1215,7 +1215,191 @@
 
         </section>
 
+        <!-- =========================================
+             COMUNIDADE DIA DE TREINAMENTO
+        ========================================== -->
 
+        <section
+          class="tab"
+          id="tab-comunidade"
+        >
+
+          <div class="section-head">
+
+            <div>
+
+              <h2>
+                💬 Comunidade Dia de Treinamento
+              </h2>
+
+              <p class="muted">
+                Um espaço para profissionais e estudantes
+                de enfermagem aprenderem, compartilharem
+                experiências e fortalecerem a profissão.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <!-- PERFIL DA COMUNIDADE -->
+
+          <div
+            class="card"
+            id="comunidade-sem-perfil"
+          >
+
+            <h3>
+              👤 Seu perfil na Comunidade
+            </h3>
+
+            <p class="muted">
+              Escolha como você deseja ser conhecido
+              pelos outros participantes.
+              Seu e-mail não será exibido publicamente.
+            </p>
+
+            <label>
+              Pseudônimo
+            </label>
+
+            <input
+              id="comunidade-pseudonimo"
+              type="text"
+              maxlength="30"
+              placeholder="Ex.: Plantonista RJ"
+            >
+
+            <label>
+              Profissão
+            </label>
+
+            <select id="comunidade-profissao">
+
+              <option value="">
+                Selecione
+              </option>
+
+              <option value="Enfermeiro(a)">
+                Enfermeiro(a)
+              </option>
+
+              <option value="Técnico(a) de Enfermagem">
+                Técnico(a) de Enfermagem
+              </option>
+
+              <option value="Auxiliar de Enfermagem">
+                Auxiliar de Enfermagem
+              </option>
+
+              <option value="Estudante de Enfermagem">
+                Estudante de Enfermagem
+              </option>
+
+              <option value="Outro">
+                Outro
+              </option>
+
+            </select>
+
+            <button
+              class="primary-btn full"
+              type="button"
+              onclick="criarPerfilComunidade()"
+            >
+              Criar meu perfil
+            </button>
+
+          </div>
+
+
+          <!-- ÁREA PRINCIPAL DA COMUNIDADE -->
+
+          <div
+            id="comunidade-conteudo"
+            class="hidden"
+          >
+
+            <div class="card">
+
+              <h3>
+                ✍️ Nova publicação
+              </h3>
+
+              <p class="muted">
+                Compartilhe conhecimento, experiências,
+                ideias e oportunidades com a comunidade.
+              </p>
+
+              <select id="comunidade-categoria">
+                <option value="">
+                  Escolha uma categoria
+                </option>
+              </select>
+
+              <input
+                id="comunidade-titulo"
+                type="text"
+                maxlength="120"
+                placeholder="Título da publicação"
+              >
+
+              <textarea
+                id="comunidade-post"
+                rows="5"
+                maxlength="5000"
+                placeholder="Escreva sua publicação..."
+              ></textarea>
+
+              <button
+                class="primary-btn full"
+                type="button"
+                onclick="publicarNaComunidade()"
+              >
+                📢 Publicar
+              </button>
+
+            </div>
+
+
+            <div class="card warning-card">
+
+              <h3>
+                🛡️ Comunidade responsável
+              </h3>
+
+              <p class="muted">
+                Não publique nomes de pacientes,
+                prontuários, imagens identificáveis ou
+                qualquer informação assistencial que
+                permita identificar uma pessoa.
+              </p>
+
+            </div>
+
+
+            <div class="section-head">
+
+              <div>
+
+                <h3>
+                  🗨️ Publicações recentes
+                </h3>
+
+                <p class="muted">
+                  Acompanhe as conversas da comunidade.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div id="lista-posts-comunidade"></div>
+
+          </div>
+
+        </section>
 
         <!-- =========================================
              CONFIGURAÇÕES
