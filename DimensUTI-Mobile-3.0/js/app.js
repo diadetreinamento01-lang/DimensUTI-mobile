@@ -9276,6 +9276,8 @@ async function carregarPostsComunidade() {
 
       lista.appendChild(card);
 
+       carregarReacoesPostComunidade(post.id);
+      
     });
 
 
