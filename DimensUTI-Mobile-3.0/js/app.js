@@ -9187,6 +9187,93 @@ async function carregarPostsComunidade() {
       card.appendChild(titulo);
       card.appendChild(conteudo);
 
+
+      // ==========================================
+      // REAÇÕES DA PUBLICAÇÃO
+      // ==========================================
+
+      const areaReacoes =
+        document.createElement("div");
+
+      areaReacoes.className =
+        "community-reactions";
+
+      areaReacoes.innerHTML = `
+        <button
+          type="button"
+          class="secondary-btn"
+          onclick="reagirPostComunidade('${post.id}', 'like')"
+        >
+          👍 Like
+          <span id="reacao-like-${post.id}">0</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn"
+          onclick="reagirPostComunidade('${post.id}', 'dislike')"
+        >
+          👎 Dislike
+          <span id="reacao-dislike-${post.id}">0</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn"
+          onclick="reagirPostComunidade('${post.id}', 'concordo')"
+        >
+          🤝 Concordo
+          <span id="reacao-concordo-${post.id}">0</span>
+        </button>
+
+        <button
+          type="button"
+          class="secondary-btn"
+          onclick="reagirPostComunidade('${post.id}', 'prejudicar')"
+        >
+          ⚠️ Tá querendo me prejudicar
+          <span id="reacao-prejudicar-${post.id}">0</span>
+        </button>
+      `;
+
+      card.appendChild(areaReacoes);
+
+
+      // ==========================================
+      // COMENTÁRIOS DA PUBLICAÇÃO
+      // ==========================================
+
+      const areaComentarios =
+        document.createElement("div");
+
+      areaComentarios.className =
+        "community-comments";
+
+      areaComentarios.innerHTML = `
+        <div
+          id="comentarios-${post.id}"
+          class="community-comments-list"
+        ></div>
+
+        <textarea
+          id="novo-comentario-${post.id}"
+          rows="2"
+          maxlength="2000"
+          placeholder="Escreva um comentário..."
+        ></textarea>
+
+        <button
+          class="secondary-btn full"
+          type="button"
+          onclick="publicarComentarioComunidade('${post.id}')"
+        >
+          💬 Comentar
+        </button>
+      `;
+
+      card.appendChild(areaComentarios);
+
+
       lista.appendChild(card);
 
     });
