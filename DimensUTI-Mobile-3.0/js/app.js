@@ -8618,3 +8618,196 @@ document.addEventListener(
     }
   }
 );
+// ==========================================
+// COMUNIDADE DIA DE TREINAMENTO
+// PERFIL PÚBLICO
+// ==========================================
+
+async function criarPerfilComunidade() {
+
+  try {
+
+    const pseudonimo =
+      document
+        .getElementById("comunidade-pseudonimo")
+        ?.value
+        .trim();
+
+    const profissao =
+      document
+        .getElementById("comunidade-profissao")
+        ?.value;
+
+
+    if (!pseudonimo || pseudonimo.length < 3) {
+
+      alert(
+        "Escolha um pseudônimo com pelo menos 3 caracteres."
+      );
+
+      return;
+    }
+
+
+    if (!profissao) {
+
+      alert(
+        "Selecione sua profissão."
+      );
+
+      return;
+    }
+
+
+    const {
+      data: { user },
+      error: erroUsuario
+    } =
+      await supabaseClient.auth.getUser();
+
+
+    if (erroUsuario || !user) {
+
+      alert(
+        "Sua sessão não foi encontrada. Entre novamente na sua conta."
+      );
+
+      return;
+    }
+
+
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("perfis_comunidade")
+        .insert({
+          id: user.id,
+          pseudonimo: pseudonimo,
+          profissao: profissao
+        });
+
+
+    if (error) {
+
+      console.error(
+        "Erro ao criar perfil da comunidade:",
+        error
+      );
+
+      if (error.code === "23505") {
+
+        alert(
+          "Esta conta já possui um perfil na Comunidade."
+        );
+
+        return;
+      }
+
+      throw error;
+    }
+
+
+    alert(
+      "Perfil criado com sucesso! Bem-vindo à Comunidade Dia de Treinamento."
+    );
+
+
+    await carregarComunidade();
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro na criação do perfil da comunidade:",
+      erro
+    );
+
+    alert(
+      "Não foi possível criar seu perfil na Comunidade."
+    );
+
+  }
+
+}
+
+
+// ==========================================
+// CARREGAR PERFIL DA COMUNIDADE
+// ==========================================
+
+async function carregarComunidade() {
+
+  try {
+
+    const {
+      data: { user }
+    } =
+      await supabaseClient.auth.getUser();
+
+
+    if (!user) {
+      return;
+    }
+
+
+    const {
+      data: perfil,
+      error
+    } =
+      await supabaseClient
+        .from("perfis_comunidade")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    const areaSemPerfil =
+      document.getElementById(
+        "comunidade-sem-perfil"
+      );
+
+    const areaConteudo =
+      document.getElementById(
+        "comunidade-conteudo"
+      );
+
+
+    if (perfil) {
+
+      areaSemPerfil
+        ?.classList
+        .add("hidden");
+
+      areaConteudo
+        ?.classList
+        .remove("hidden");
+
+    } else {
+
+      areaSemPerfil
+        ?.classList
+        .remove("hidden");
+
+      areaConteudo
+        ?.classList
+        .add("hidden");
+
+    }
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao carregar Comunidade:",
+      erro
+    );
+
+  }
+
+}
