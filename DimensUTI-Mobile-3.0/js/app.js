@@ -8789,7 +8789,9 @@ async function carregarComunidade() {
       areaConteudo
         ?.classList
         .remove("hidden");
-
+      
+      await carregarCategoriasComunidade();
+      
     } else {
 
       areaSemPerfil
