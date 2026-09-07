@@ -9020,3 +9020,201 @@ async function publicarNaComunidade() {
   }
 
 }
+// ==========================================
+// LISTAR PUBLICAÇÕES DA COMUNIDADE
+// ==========================================
+
+async function carregarPostsComunidade() {
+
+  try {
+
+    const lista =
+      document.getElementById(
+        "lista-posts-comunidade"
+      );
+
+    if (!lista) {
+      return;
+    }
+
+    lista.innerHTML = `
+      <div class="card">
+        <p class="muted">
+          Carregando publicações...
+        </p>
+      </div>
+    `;
+
+
+    const {
+      data: posts,
+      error
+    } =
+      await supabaseClient
+        .from("posts_comunidade")
+        .select(`
+          id,
+          titulo,
+          conteudo,
+          criado_em,
+          autor_id,
+          categoria_id,
+          perfis_comunidade (
+            pseudonimo,
+            profissao
+          ),
+          categorias_comunidade (
+            nome,
+            icone
+          )
+        `)
+        .order("criado_em", {
+          ascending: false
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (!posts || posts.length === 0) {
+
+      lista.innerHTML = `
+        <div class="card">
+          <p class="muted">
+            Ainda não existem publicações.
+            Seja o primeiro a participar.
+          </p>
+        </div>
+      `;
+
+      return;
+    }
+
+
+    lista.innerHTML = "";
+
+
+    posts.forEach(post => {
+
+      const perfil =
+        post.perfis_comunidade;
+
+      const categoria =
+        post.categorias_comunidade;
+
+
+      const dataPublicacao =
+        new Date(
+          post.criado_em
+        ).toLocaleString(
+          "pt-BR",
+          {
+            dateStyle: "short",
+            timeStyle: "short"
+          }
+        );
+
+
+      const card =
+        document.createElement("div");
+
+      card.className = "card";
+
+
+      const cabecalho =
+        document.createElement("div");
+
+      cabecalho.className =
+        "community-post-header";
+
+
+      const autor =
+        document.createElement("strong");
+
+      autor.textContent =
+        perfil?.pseudonimo ||
+        "Participante";
+
+
+      const profissao =
+        document.createElement("span");
+
+      profissao.className = "muted";
+
+      profissao.textContent =
+        perfil?.profissao
+          ? ` • ${perfil.profissao}`
+          : "";
+
+
+      cabecalho.appendChild(autor);
+      cabecalho.appendChild(profissao);
+
+
+      const categoriaEl =
+        document.createElement("p");
+
+      categoriaEl.className = "muted";
+
+      categoriaEl.textContent =
+        `${categoria?.icone || "💬"} ${
+          categoria?.nome || "Comunidade"
+        } • ${dataPublicacao}`;
+
+
+      const titulo =
+        document.createElement("h3");
+
+      titulo.textContent =
+        post.titulo;
+
+
+      const conteudo =
+        document.createElement("p");
+
+      conteudo.className =
+        "community-post-text";
+
+      conteudo.textContent =
+        post.conteudo;
+
+
+      card.appendChild(cabecalho);
+      card.appendChild(categoriaEl);
+      card.appendChild(titulo);
+      card.appendChild(conteudo);
+
+      lista.appendChild(card);
+
+    });
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao carregar publicações:",
+      erro
+    );
+
+    const lista =
+      document.getElementById(
+        "lista-posts-comunidade"
+      );
+
+    if (lista) {
+
+      lista.innerHTML = `
+        <div class="card">
+          <p class="muted">
+            Não foi possível carregar as publicações.
+          </p>
+        </div>
+      `;
+
+    }
+
+  }
+
+}
