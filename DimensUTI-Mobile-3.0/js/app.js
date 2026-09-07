@@ -9306,3 +9306,218 @@ async function carregarPostsComunidade() {
   }
 
 }
+// ==========================================
+// REAÇÕES DA COMUNIDADE
+// ==========================================
+
+async function reagirPostComunidade(postId, tipo) {
+
+  try {
+
+    const tiposPermitidos = [
+      "like",
+      "dislike",
+      "concordo",
+      "prejudicar"
+    ];
+
+    if (!tiposPermitidos.includes(tipo)) {
+      return;
+    }
+
+
+    const {
+      data: { user },
+      error: erroUsuario
+    } =
+      await supabaseClient.auth.getUser();
+
+
+    if (erroUsuario || !user) {
+
+      alert(
+        "Sua sessão não foi encontrada. Entre novamente."
+      );
+
+      return;
+    }
+
+
+    // Verifica se o usuário já reagiu a este post
+    const {
+      data: reacaoAtual,
+      error: erroConsulta
+    } =
+      await supabaseClient
+        .from("reacoes_comunidade")
+        .select("id, tipo")
+        .eq("post_id", postId)
+        .eq("usuario_id", user.id)
+        .maybeSingle();
+
+
+    if (erroConsulta) {
+      throw erroConsulta;
+    }
+
+
+    // Clicou novamente na mesma reação:
+    // remove a reação
+    if (
+      reacaoAtual &&
+      reacaoAtual.tipo === tipo
+    ) {
+
+      const {
+        error: erroExcluir
+      } =
+        await supabaseClient
+          .from("reacoes_comunidade")
+          .delete()
+          .eq("id", reacaoAtual.id);
+
+
+      if (erroExcluir) {
+        throw erroExcluir;
+      }
+
+    }
+
+    // Já tinha outra reação:
+    // troca pela nova
+    else if (reacaoAtual) {
+
+      const {
+        error: erroAtualizar
+      } =
+        await supabaseClient
+          .from("reacoes_comunidade")
+          .update({
+            tipo: tipo
+          })
+          .eq("id", reacaoAtual.id);
+
+
+      if (erroAtualizar) {
+        throw erroAtualizar;
+      }
+
+    }
+
+    // Ainda não tinha reação:
+    // cria uma nova
+    else {
+
+      const {
+        error: erroInserir
+      } =
+        await supabaseClient
+          .from("reacoes_comunidade")
+          .insert({
+            post_id: postId,
+            usuario_id: user.id,
+            tipo: tipo
+          });
+
+
+      if (erroInserir) {
+        throw erroInserir;
+      }
+
+    }
+
+
+    await carregarReacoesPostComunidade(postId);
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao registrar reação:",
+      erro
+    );
+
+    alert(
+      "Não foi possível registrar sua reação."
+    );
+
+  }
+
+}
+
+
+// ==========================================
+// CARREGAR CONTAGEM DAS REAÇÕES
+// ==========================================
+
+async function carregarReacoesPostComunidade(postId) {
+
+  try {
+
+    const {
+      data: reacoes,
+      error
+    } =
+      await supabaseClient
+        .from("reacoes_comunidade")
+        .select("tipo")
+        .eq("post_id", postId);
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    const contagem = {
+      like: 0,
+      dislike: 0,
+      concordo: 0,
+      prejudicar: 0
+    };
+
+
+    reacoes?.forEach(reacao => {
+
+      if (
+        Object.prototype.hasOwnProperty.call(
+          contagem,
+          reacao.tipo
+        )
+      ) {
+
+        contagem[reacao.tipo]++;
+
+      }
+
+    });
+
+
+    Object.keys(contagem)
+      .forEach(tipo => {
+
+        const elemento =
+          document.getElementById(
+            `reacao-${tipo}-${postId}`
+          );
+
+        if (elemento) {
+
+          elemento.textContent =
+            contagem[tipo];
+
+        }
+
+      });
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao carregar reações:",
+      erro
+    );
+
+  }
+
+}
