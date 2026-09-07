@@ -9606,3 +9606,149 @@ async function publicarComentarioComunidade(postId) {
   }
 
 }
+// ==========================================
+// CARREGAR COMENTÁRIOS DA COMUNIDADE
+// ==========================================
+
+async function carregarComentariosPostComunidade(postId) {
+
+  try {
+
+    const lista =
+      document.getElementById(
+        `comentarios-${postId}`
+      );
+
+
+    if (!lista) {
+      return;
+    }
+
+
+    const {
+      data: comentarios,
+      error
+    } =
+      await supabaseClient
+        .from("comentarios_comunidade")
+        .select(`
+          id,
+          conteudo,
+          criado_em,
+          autor_id,
+          perfis_comunidade (
+            pseudonimo,
+            profissao
+          )
+        `)
+        .eq("post_id", postId)
+        .order("criado_em", {
+          ascending: true
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    lista.innerHTML = "";
+
+
+    if (
+      !comentarios ||
+      comentarios.length === 0
+    ) {
+      return;
+    }
+
+
+    comentarios.forEach(comentario => {
+
+      const perfil =
+        comentario.perfis_comunidade;
+
+
+      const dataComentario =
+        new Date(
+          comentario.criado_em
+        ).toLocaleString(
+          "pt-BR",
+          {
+            dateStyle: "short",
+            timeStyle: "short"
+          }
+        );
+
+
+      const item =
+        document.createElement("div");
+
+      item.className =
+        "community-comment";
+
+
+      const cabecalho =
+        document.createElement("div");
+
+
+      const autor =
+        document.createElement("strong");
+
+      autor.textContent =
+        perfil?.pseudonimo ||
+        "Participante";
+
+
+      const profissao =
+        document.createElement("span");
+
+      profissao.className =
+        "muted";
+
+      profissao.textContent =
+        perfil?.profissao
+          ? ` • ${perfil.profissao}`
+          : "";
+
+
+      const data =
+        document.createElement("small");
+
+      data.className =
+        "muted";
+
+      data.textContent =
+        ` • ${dataComentario}`;
+
+
+      cabecalho.appendChild(autor);
+      cabecalho.appendChild(profissao);
+      cabecalho.appendChild(data);
+
+
+      const texto =
+        document.createElement("p");
+
+      texto.textContent =
+        comentario.conteudo;
+
+
+      item.appendChild(cabecalho);
+      item.appendChild(texto);
+
+      lista.appendChild(item);
+
+    });
+
+
+  } catch (erro) {
+
+    console.error(
+      "Erro ao carregar comentários:",
+      erro
+    );
+
+  }
+
+}
